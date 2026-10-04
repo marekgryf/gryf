@@ -266,7 +266,7 @@ main.wide { max-width: 1680px; }
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.4</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.5</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -714,6 +714,7 @@ akordy: chwyty     # albo: brzmiące
               <button class="btn" data-test="all">Wszystkie czerwone</button>
               <button class="btn" data-test="string">Struna 1</button>
               <button class="btn" data-test="fret">Próg 1</button>
+              <button class="btn" data-test="rgb">Kolory: czerwony, zielony, niebieski, biały</button>
               <button class="btn" data-test="off">Zgaś</button>
             </div>
             <div class="row">
@@ -736,6 +737,7 @@ akordy: chwyty     # albo: brzmiące
                 <select id="encMode">
                   <option value="frame">Cała klatka naraz</option>
                   <option value="perled">Tylko zmienione diody</option>
+                  <option value="vnote">Visual Note (VNOTE)</option>
                 </select>
               </label>
               <label class="f" style="width:110px">Kolejność barw
@@ -1717,7 +1719,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '1.4';
+  const VERSION = '1.5';
 
   /* ---------- pamięć ---------- */
   const store = {
@@ -2411,7 +2413,7 @@ odliczanie: 1
       bleUi();
       if (this.server) await this.scan();
     },
-    disconnect() { try { this.dev && this.dev.gatt.disconnect(); } catch (e) { } this.server = null; bleUi(); },
+    async disconnect() { clearInterval(this.vnTimer); try { await this.vnStop(); } catch (e) { } try { this.dev && this.dev.gatt.disconnect(); } catch (e) { } this.server = null; this.vnLive = false; bleUi(); },
     async scan() {
       if (!this.server) return;
       this.tree = []; this.chars.clear();
@@ -2426,7 +2428,7 @@ odliczanie: 1
           this.chars.set(item.svc + '/' + item.uuid, item);
           if (p.read) { try { const v = await c.readValue(); item.val = hex(v) + (ascii(v) ? '  „' + ascii(v) + '”' : ''); } catch (e) { item.val = '(nie do odczytu: ' + e.message + ')'; } }
           if (p.notify || p.indicate) {
-            try { await c.startNotifications(); c.addEventListener('characteristicvaluechanged', ev => this.L('rx', '← ' + c.uuid.slice(4, 8) + ': ' + hex(ev.target.value))); }
+            try { await c.startNotifications(); c.addEventListener('characteristicvaluechanged', ev => { this.L('rx', '← ' + c.uuid.slice(4, 8) + ': ' + hex(ev.target.value)); if (normUuid(c.uuid) === VN_CHAR) this.vnRx(new Uint8Array(ev.target.value.buffer.slice(ev.target.value.byteOffset, ev.target.value.byteOffset + ev.target.value.byteLength))); }); }
             catch (e) { this.L('er', 'Powiadomienia ' + c.uuid + ': ' + e.message); }
           }
           node.chars.push(item);
@@ -2444,20 +2446,53 @@ odliczanie: 1
         this.target = cand[0] || null;
       }
       this.L('rx', `Znaleziono usług: ${this.tree.length}, kanałów: ${this.chars.size}`);
+      if (vn) {
+        if (S.enc.mode !== 'vnote') { Object.assign(S.enc, { mode: 'vnote', order: 'fret', str: 'high', serp: false, revF: false, resp: true, gap: 0 }); save(); syncEncUi(); this.L('rx', 'Rozpoznano Visual Note – ustawiłem sterownik VNOTE.'); }
+        this.vnLive = false;
+        try { await this.write(new Uint8Array([0xc0])); } catch (e) { this.L('er', 'Powitanie: ' + e.message); }
+        clearInterval(this.vnTimer);
+        this.vnTimer = setInterval(() => { if (this.server && S.enc.mode === 'vnote') this.write(new Uint8Array([0xb0])).catch(() => { }); }, 5000);
+      }
       renderTree(); bleUi();
     },
-    async write(bytes) {
+    vnRx(u) {
+      if (!u.length) return;
+      if (u[0] === 0xb1 && u.length >= 2) { this.battery = u[1]; bleUi(); }
+      else if (u[0] === 0x0a) { this.vnAck = true; if (this.vnWait) { this.vnWait(); this.vnWait = null; } }
+    },
+    async vnStart() {
+      if (this.vnLive) return;
+      this.vnAck = false;
+      const ack = new Promise(res => { this.vnWait = res; setTimeout(res, 600); });
+      await this.write(new Uint8Array([0xac]));
+      await ack;
+      this.vnLive = true;
+    },
+    async vnStop() {
+      if (!this.vnLive || !this.server) return;
+      try { await this.write(vnPayload(Array.from({ length: nLeds() }, () => [0, 0, 0]))); await this.write(new Uint8Array([0xad])); } catch (e) { }
+      this.vnLive = false;
+    },
+    write(bytes) {
+      const run = () => this.write1(bytes);
+      const p = (this.wq || Promise.resolve()).then(run, run);
+      this.wq = p.catch(() => { });
+      return p;
+    },
+    async write1(bytes) {
       const t = this.target; if (!t) throw new Error('Nie wybrano kanału zapisu');
       if (!writeAllowed(t)) { this.target = null; bleUi(); throw new Error('Zablokowano zapis do kanału ' + t.uuid + ' (aktualizacja oprogramowania nakładki)'); }
       const c = t.c; const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
-      if (!S.enc.resp && c.properties.writeWithoutResponse && c.writeValueWithoutResponse) await c.writeValueWithoutResponse(u8);
+      if (!S.enc.resp && S.enc.mode !== 'vnote' && c.properties.writeWithoutResponse && c.writeValueWithoutResponse) await c.writeValueWithoutResponse(u8);
       else if (c.writeValueWithResponse) await c.writeValueWithResponse(u8);
       else await c.writeValue(u8);
     },
     async sendPackets(payloads, logIt) {
+      const chunk = S.enc.mode === 'vnote' ? 4096 : S.enc.chunk;
+      if (S.enc.mode === 'vnote' && payloads.length && payloads[0][0] === 0xab) await this.vnStart();
       for (const p of payloads) {
-        for (let i = 0; i < p.length; i += S.enc.chunk) {
-          const part = p.slice(i, i + S.enc.chunk);
+        for (let i = 0; i < p.length; i += chunk) {
+          const part = p.slice(i, i + chunk);
           if (logIt) this.L('tx', '→ ' + hex(part));
           await this.write(part);
           if (S.enc.gap) await sleep(S.enc.gap);
@@ -2524,9 +2559,23 @@ odliczanie: 1
     if (last !== tpl.length) throw new Error('Nie rozumiem końcówki szablonu: „' + tpl.slice(last) + '”');
     return new Uint8Array(out);
   }
+  // Visual Note: 'AB' + 132 diody (22 progi × 6 strun, od wysokiej e) po 12 bitów (R,G,B po 4 bity), pary diod w 3 bajtach
+  const VN_SLOTS = 132;
+  function vnPayload(leds) {
+    const v = new Array(VN_SLOTS).fill(0);
+    const q = x => Math.max(0, Math.min(15, Math.round(x / 17)));
+    leds.forEach((c, i) => { if (i < VN_SLOTS && c) { const [r, g, b] = c; v[i] = (q(r) << 8) | (q(g) << 4) | q(b); } });
+    const out = new Uint8Array(1 + VN_SLOTS * 3 / 2); out[0] = 0xab;
+    for (let i = 0, j = 1; i < VN_SLOTS; i += 2, j += 3) {
+      const a = v[i], c = v[i + 1];
+      out[j] = a & 0xff; out[j + 1] = ((a >> 8) & 0x0f) | ((c & 0x0f) << 4); out[j + 2] = (c >> 4) & 0xff;
+    }
+    return out;
+  }
   function rgbBytes(leds) { const out = []; for (const c of leds) out.push(...orderRGB(c)); return out; }
   function buildPayloads(leds, prev) {
     const e = S.enc, out = [];
+    if (e.mode === 'vnote') return [vnPayload(leds)];
     if (e.mode === 'frame' || !prev) {
       out.push(encodeTpl(e.frame, { rgb: rgbBytes(leds), n: leds.length }));
     } else {
@@ -2566,6 +2615,7 @@ odliczanie: 1
     if (kind === 'string') for (let f = 1; f <= S.frets; f++) leds[ledIndex(5, f)] = red.slice();
     if (kind === 'fret') for (let s = 0; s < 6; s++) leds[ledIndex(s, 1)] = red.slice();
     if (kind === 'one') leds[B.frameIdx] = red.slice();
+    if (kind === 'rgb') { const k = S.brightness / 100 * 255; const cols = [[k, 0, 0], [0, k, 0], [0, 0, k], [k, k, k]]; cols.forEach((c, n) => { for (let s = 0; s < 6; s++) leds[ledIndex(s, n + 1)] = c.map(Math.round); }); }
     return leds;
   }
   async function sendTest(kind) {
@@ -3127,7 +3177,7 @@ odliczanie: 1
   function bleUi() {
     const on = !!B.server;
     $('#bleConnect').disabled = on; $('#bleDisconnect').disabled = !on; $('#bleScan').disabled = !on; $('#rawSend').disabled = !on || !B.target;
-    $('#bleStatus').innerHTML = on ? `Połączono z <b>${esc(B.dev.name || '(bez nazwy)')}</b>. Kanał zapisu: <span class="mono">${B.target ? esc(B.target.uuid) : 'brak'}</span>${S.enc.ready ? ' · sterownik gotowy' : ' · sterownik nieustawiony'}`
+    $('#bleStatus').innerHTML = on ? `Połączono z <b>${esc(B.dev.name || '(bez nazwy)')}</b>. Kanał zapisu: <span class="mono">${B.target ? esc(B.target.uuid) : 'brak'}</span>${S.enc.mode === 'vnote' ? ' · sterownik Visual Note' : ''}${S.enc.ready ? ' · gotowy do gry' : ' · czeka na test'}${B.battery != null ? ' · bateria ' + B.battery + '%' : ''}`
       : 'Niepołączono.';
     updatePills();
   }
@@ -3196,7 +3246,7 @@ odliczanie: 1
     $('#brightness').oninput = e => { S.brightness = +e.target.value; $('#brVal').textContent = S.brightness + '%'; save(); };
     $('#lead').value = S.leadMs; $('#leadVal').textContent = S.leadMs + ' ms';
     $('#lead').oninput = e => { S.leadMs = +e.target.value; $('#leadVal').textContent = S.leadMs + ' ms'; save(); };
-    $('#ledEnable').checked = S.ledEnable; $('#ledEnable').onchange = e => { S.ledEnable = e.target.checked; save(); lastLedKey = ''; };
+    $('#ledEnable').checked = S.ledEnable; $('#ledEnable').onchange = e => { S.ledEnable = e.target.checked; save(); lastLedKey = ''; if (!S.ledEnable && S.enc.mode === 'vnote') B.vnStop(); };
     // gitara
     $('#model').value = String(S.frets);
     $('#model').onchange = e => { S.frets = +e.target.value; S.fretMax = Math.min(S.fretMax, S.frets); $('#fretMax').value = S.fretMax; save(); refreshBoards(); };
@@ -3228,6 +3278,10 @@ odliczanie: 1
     $('#capoNote').textContent = P.capo > 0 ? (P.capoMode === 'concert' ? 'Akordy w zapisie to dźwięki brzmiące; pokazuję, gdzie je zagrać z kapodastrem.' : 'Akordy w zapisie to chwyty jak bez kapodastra; brzmią o ' + P.capo + ' ' + (P.capo === 1 ? 'półton' : P.capo < 5 ? 'półtony' : 'półtonów') + ' wyżej.') + (P.song && P.song.capo != null ? ' Kapodaster ustawiony w zapisie utworu.' : '') : '';
   }
   function capoChanged() { syncCapoUi(); fbPlay.cfg = ''; fbScale.cfg = ''; computeVoicings(); renderScaleDetail(); }
+  function syncEncUi() {
+    const E = S.enc; const set = (id, v) => { const el = $(id); if (!el) return; if (el.type === 'checkbox') el.checked = !!v; else el.value = v; };
+    set('#encMode', E.mode); set('#encOrder', E.order); set('#encStr', E.str); set('#encSerp', E.serp); set('#encRevF', E.revF); set('#encResp', E.resp); set('#encGap', E.gap);
+  }
   function refreshBoards() {
     fbPlay.cfg = ''; fbScale.cfg = ''; lastKey = ''; lastLedKey = '';
     computeVoicings();
