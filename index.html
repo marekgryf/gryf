@@ -660,6 +660,7 @@ akordy: chwyty     # albo: brzmiące
               <button class="btn" id="bleDisconnect" disabled>Rozłącz</button>
             </div>
             <p class="small" id="bleStatus">Niepołączono.</p>
+            <label class="chk"><input type="checkbox" id="bleShowAll"> Pokaż wszystkie urządzenia (gdy nakładki VNOTE nie ma na liście)</label>
             <label class="chk"><input type="checkbox" id="ledEnable" checked> Wysyłaj obraz gryfu na diody</label>
             <label class="f">Jasność diod <span class="mono" id="brVal">60%</span><input type="range" id="brightness" min="5" max="100" value="60"></label>
             <label class="f">Wyprzedzenie diod (kompensacja opóźnienia Bluetooth) <span class="mono" id="leadVal">40 ms</span><input type="range" id="lead" min="0" max="200" step="5" value="40"></label>
@@ -2357,7 +2358,12 @@ odliczanie: 1
   const SERVICES = [0x180a, 0x180f, 0xffe0, 0xffe5, 0xfff0, 0xffd0, 0xffd5, 0xffb0, 0xffc0, 0xff00, 0xfee7, 0xfee9, 0xae00, 0xae30, 0xa000, 0x00ff, 0x1910, 0xfe59,
     '6e400001-b5a3-f393-e0a9-e50e24dcca9e', '49535343-fe7d-4ae5-8fa9-9fafd205e455', '4fafc201-1fb5-459e-8fcc-c5c9c331914b',
     '0783b03e-8535-b5a0-7140-a304d2495cb7', '00010203-0405-0607-0809-0a0b0c0d1910', '0000ffe0-0000-1000-8000-00805f9b34fb'];
-  const NO_WRITE = ['0000fe59-0000-1000-8000-00805f9b34fb'];
+  // usługi, do których NIGDY nie piszemy (aktualizacja oprogramowania urządzenia i usługi systemowe)
+  const NO_WRITE = ['0000fe59-0000-1000-8000-00805f9b34fb', '0000fef5-0000-1000-8000-00805f9b34fb', '0000180a-0000-1000-8000-00805f9b34fb', '00001800-0000-1000-8000-00805f9b34fb', '00001801-0000-1000-8000-00805f9b34fb'];
+  // Visual Note (VNOTE): usługa sterowania i jej jedyny kanał zapisu/powiadomień
+  const VN_SERVICE = '18424398-7cbc-11e9-8f9e-2a86e4085a59';
+  const VN_CHAR = '2d86686a-53dc-25b3-0c4a-f0e10c8dee20';
+  SERVICES.unshift(VN_SERVICE, 0xfef5);
   const hex = buf => [...new Uint8Array(buf.buffer ? buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) : buf)].map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
   const ascii = buf => { const u = new Uint8Array(buf.buffer ? buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) : buf); return [...u].every(b => b >= 32 && b < 127) && u.length ? String.fromCharCode(...u) : ''; };
   const B = {
@@ -2371,9 +2377,20 @@ odliczanie: 1
     async connect() {
       if (!this.supported()) { toast('Ta przeglądarka nie obsługuje Bluetooth. Użyj Bluefy na iPhonie.'); return; }
       const extra = (S.extraUuids || '').split(/[,\s]+/).map(x => x.trim().toLowerCase()).filter(Boolean).map(x => /^[0-9a-f]{4}$/.test(x) ? parseInt(x, 16) : x);
+      const all = this.showAll;
+      this.L('tx', all ? 'Otwieram listę wszystkich urządzeń Bluetooth…' : 'Szukam nakładki VNOTE…');
+      const hint = setTimeout(() => this.L('er', 'Lista urządzeń się nie pojawiła. Ta przeglądarka prawdopodobnie nie obsługuje Bluetooth na stronach – użyj Edge/Chrome na PC albo Bluefy na iPhonie.'), 12000);
       try {
-        this.dev = await navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [...SERVICES, ...extra] });
-      } catch (e) { this.L('er', 'Wybór urządzenia przerwany: ' + e.message); return; }
+        const opts = all ? { acceptAllDevices: true, optionalServices: [...SERVICES, ...extra] }
+          : { filters: [{ namePrefix: 'VNOTE' }, { namePrefix: 'VNote' }, { services: [0xfef5] }, { services: [VN_SERVICE] }], optionalServices: [...SERVICES, ...extra] };
+        this.dev = await navigator.bluetooth.requestDevice(opts);
+      } catch (e) {
+        clearTimeout(hint);
+        const msg = e ? (e.name ? e.name + ': ' : '') + (e.message || String(e)) : 'bez szczegółów';
+        this.L('er', 'Nie wybrano urządzenia (' + msg + '). Jeśli nakładki nie było na liście: zamknij Visual Note, wyłącz i włącz nakładkę, spróbuj ponownie. Możesz też zaznaczyć „Pokaż wszystkie urządzenia”.');
+        return;
+      }
+      clearTimeout(hint);
       this.dev.addEventListener('gattserverdisconnected', () => { this.L('er', 'Rozłączono'); this.server = null; bleUi(); });
       this.L('tx', 'Łączę z: ' + (this.dev.name || '(bez nazwy)') + ' id ' + this.dev.id);
       try { this.server = await this.dev.gatt.connect(); this.L('rx', 'Połączono'); }
@@ -2405,7 +2422,9 @@ odliczanie: 1
       }
       // wybór kanału zapisu
       const saved = S.enc.service && this.chars.get(S.enc.service + '/' + S.enc.char);
-      if (saved && (saved.props.includes('write') || saved.props.includes('writeWithoutResponse'))) this.target = saved;
+      const vn = [...this.chars.values()].find(x => x.uuid === VN_CHAR);
+      if (vn) this.target = vn;
+      else if (saved && !NO_WRITE.includes(saved.svc) && (saved.props.includes('write') || saved.props.includes('writeWithoutResponse'))) this.target = saved;
       else {
         const cand = [...this.chars.values()].filter(x => (x.props.includes('writeWithoutResponse') || x.props.includes('write')) && !NO_WRITE.includes(x.svc) && !/^0000180a/.test(x.svc));
         cand.sort((a, b) => (b.props.includes('writeWithoutResponse') - a.props.includes('writeWithoutResponse')));
@@ -3136,7 +3155,7 @@ odliczanie: 1
     $('#bleSupport').innerHTML = sup
       ? '<div class="notice ok">Ta przeglądarka obsługuje Bluetooth.</div>'
       : '<div class="notice"><b>Bluetooth niedostępny w tym widoku.</b><span>Na iPhonie zainstaluj darmową przeglądarkę <b>Bluefy – Web BLE Browser</b> z App Store i otwórz w niej tę aplikację. Wszystkie inne funkcje działają tutaj normalnie.</span></div>';
-    $('#bleConnect').onclick = () => B.connect();
+    $('#bleConnect').onclick = () => { B.showAll = $('#bleShowAll').checked; B.connect(); };
     $('#bleDisconnect').onclick = () => B.disconnect();
     $('#bleScan').onclick = () => B.scan();
     $('#bleReport').onclick = () => copyText(report());
