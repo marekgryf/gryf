@@ -266,7 +266,7 @@ main.wide { max-width: 1680px; }
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.6</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.7</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -428,7 +428,7 @@ main.wide { max-width: 1680px; }
             </div>
             <div class="row">
               <label class="f grow">Strefa gryfu od progu <input type="number" id="fretMin" min="0" max="15" value="0"></label>
-              <label class="f grow">do <input type="number" id="fretMax" min="0" max="15" value="15"></label>
+              <label class="f grow">do <input type="number" id="fretMax" min="0" max="14" value="14"></label>
             </div>
             <p class="small muted">W trybie chwytów strefa wskazuje, w której części gryfu szukać chwytów.</p>
             <h3>Kapodaster</h3>
@@ -670,8 +670,8 @@ akordy: chwyty     # albo: brzmiące
             <div class="row">
               <label class="f grow">Model nakładki
                 <select id="model">
-                  <option value="15">F / G Type – 15 progów (90 diod)</option>
-                  <option value="13">C Type (klasyczna) – 13 progów (78 diod)</option>
+                  <option value="14">F / G Type – struny puste + progi 1–14 (90 diod)</option>
+                  <option value="12">C Type (klasyczna) – struny puste + progi 1–12 (78 diod)</option>
                 </select>
               </label>
             </div>
@@ -713,6 +713,7 @@ akordy: chwyty     # albo: brzmiące
             <div class="row">
               <button class="btn" data-test="all">Wszystkie czerwone</button>
               <button class="btn" data-test="string">Struna 1</button>
+              <button class="btn" data-test="open">Struny puste (rząd przy siodełku)</button>
               <button class="btn" data-test="fret">Próg 1</button>
               <button class="btn" data-test="rgb">Kolory: czerwony, zielony, niebieski, biały</button>
               <button class="btn" data-test="off">Zgaś</button>
@@ -1719,7 +1720,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '1.6';
+  const VERSION = '1.7';
 
   /* ---------- pamięć ---------- */
   const store = {
@@ -1740,7 +1741,7 @@ akordy: chwyty     # albo: brzmiące
 
   /* ---------- ustawienia ---------- */
   const DEF = {
-    frets: 15, tuning: 'Standard E', lefty: false, highTop: true, brightness: 60, leadMs: 40, ledEnable: true,
+    frets: 14, tuning: 'Standard E', lefty: false, highTop: true, brightness: 60, leadMs: 40, ledEnable: true,
     colors: { root: '#ff2a1f', third: '#ffb800', fifth: '#1f8fff', seventh: '#a24bff', tension: '#00e0b8', bass: '#ff5cc8', scale: '#cfd8ff', preview: '#ffffff' },
     scaleDim: 22, show: 'both', capo: 0, capoMode: 'shapes', labels: 'note', fretMin: 0, fretMax: 15, preview: 2,
     click: false, sub: false, countIn: true, tapStart: false, clickT: true, subT: false, countInT: true,
@@ -1753,6 +1754,9 @@ akordy: chwyty     # albo: brzmiące
   S.enc = Object.assign({}, DEF.enc, S.enc || {});
   S.follow = Object.assign({}, DEF.follow, S.follow || {});
   const save = () => store.set('settings', S);
+  // nakładka F/G: struny puste + progi 1–14 (90 diod); C: puste + 1–12 (78 diod)
+  if (S.frets === 15) S.frets = 14; else if (S.frets === 13) S.frets = 12;
+  if (S.fretMax > S.frets) S.fretMax = S.frets;
 
   /* ---------- przykładowe utwory ---------- */
   const EXAMPLES = [
@@ -2551,14 +2555,17 @@ odliczanie: 1
   };
 
   // --- kodowanie ---
-  function nLeds() { return 6 * S.frets; }
-  function ledIndex(s, f) { // s 0 = niska E, f 1..frets
+  // Visual Note: rząd 0 = struny puste (przy siodełku), rząd n = próg n; w rzędzie od wysokiej e
+  function nLeds() { return S.enc.mode === 'vnote' ? VN_SLOTS : 6 * S.frets; }
+  const firstFret = () => S.enc.mode === 'vnote' ? 0 : 1;
+  function ledIndex(s, f) { // s 0 = niska E, f = próg (0 = pusta struna tylko dla Visual Note)
     const F = S.frets; const e = S.enc;
+    if (e.mode === 'vnote') return f * 6 + (S.vnFlip ? s : 5 - s);
     let si = e.str === 'low' ? s : 5 - s; let fi = e.revF ? F - f : f - 1;
     if (e.order === 'string') { if (e.serp && si % 2) fi = F - 1 - fi; return si * F + fi; }
     if (e.serp && fi % 2) si = 5 - si; return fi * 6 + si;
   }
-  function ledPos(i) { for (let s = 0; s < 6; s++) for (let f = 1; f <= S.frets; f++) if (ledIndex(s, f) === i) return { s, f }; return { s: 0, f: 1 }; }
+  function ledPos(i) { for (let s = 0; s < 6; s++) for (let f = firstFret(); f <= S.frets; f++) if (ledIndex(s, f) === i) return { s, f }; return { s: 0, f: 1 }; }
   function orderRGB(rgb) {
     const [r, g, b] = rgb; const m = { R: r, G: g, B: b };
     return S.enc.color.split('').map(ch => m[ch]);
@@ -2627,8 +2634,9 @@ odliczanie: 1
   function stateToLeds(state, previewSet) {
     const leds = Array.from({ length: nLeds() }, () => [0, 0, 0]);
     const br = S.brightness / 100;
-    for (let s = 0; s < 6; s++) for (let f = 1; f <= S.frets; f++) {
-      if (f <= (P.capo || 0)) continue;
+    const vn = S.enc.mode === 'vnote';
+    for (let s = 0; s < 6; s++) for (let f = firstFret(); f <= S.frets; f++) {
+      if (vn ? f < (P.capo || 0) : f <= (P.capo || 0)) continue;
       const cell = state && state[s][f];
       if (cell && cell.cls === 'mute') continue;
       let rgb = null, k = br;
@@ -2642,7 +2650,8 @@ odliczanie: 1
     const leds = Array.from({ length: nLeds() }, () => [0, 0, 0]);
     const red = [Math.round(255 * S.brightness / 100), 0, 0];
     if (kind === 'all') leds.forEach((c, i) => leds[i] = red.slice());
-    if (kind === 'string') for (let f = 1; f <= S.frets; f++) leds[ledIndex(5, f)] = red.slice();
+    if (kind === 'string') for (let f = firstFret(); f <= S.frets; f++) leds[ledIndex(5, f)] = red.slice();
+    if (kind === 'open') for (let s = 0; s < 6; s++) leds[ledIndex(s, 0)] = red.slice();
     if (kind === 'fret') for (let s = 0; s < 6; s++) leds[ledIndex(s, 1)] = red.slice();
     if (kind === 'one') leds[B.frameIdx] = red.slice();
     if (kind === 'rgb') { const k = S.brightness / 100 * 255; const cols = [[k, 0, 0], [0, k, 0], [0, 0, k], [k, k, k]]; cols.forEach((c, n) => { for (let s = 0; s < 6; s++) leds[ledIndex(s, n + 1)] = c.map(Math.round); }); }
