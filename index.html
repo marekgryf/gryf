@@ -2363,7 +2363,7 @@ odliczanie: 1
   // Visual Note (VNOTE): usługa sterowania i jej jedyny kanał zapisu/powiadomień
   const VN_SERVICE = '18424398-7cbc-11e9-8f9e-2a86e4085a59';
   const VN_CHAR = '2d86686a-53dc-25b3-0c4a-f0e10c8dee20';
-  SERVICES.unshift(VN_SERVICE, 0xfef5);
+  SERVICES.unshift(VN_SERVICE);
   const hex = buf => [...new Uint8Array(buf.buffer ? buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) : buf)].map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
   const ascii = buf => { const u = new Uint8Array(buf.buffer ? buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) : buf); return [...u].every(b => b >= 32 && b < 127) && u.length ? String.fromCharCode(...u) : ''; };
   const B = {
@@ -2380,17 +2380,26 @@ odliczanie: 1
       const all = this.showAll;
       this.L('tx', all ? 'Otwieram listę wszystkich urządzeń Bluetooth…' : 'Szukam nakładki VNOTE…');
       const hint = setTimeout(() => this.L('er', 'Lista urządzeń się nie pojawiła. Ta przeglądarka prawdopodobnie nie obsługuje Bluetooth na stronach – użyj Edge/Chrome na PC albo Bluefy na iPhonie.'), 12000);
-      try {
-        const opts = all ? { acceptAllDevices: true, optionalServices: [...SERVICES, ...extra] }
-          : { filters: [{ namePrefix: 'VNOTE' }, { namePrefix: 'VNote' }, { services: [0xfef5] }, { services: [VN_SERVICE] }], optionalServices: [...SERVICES, ...extra] };
-        this.dev = await navigator.bluetooth.requestDevice(opts);
-      } catch (e) {
-        clearTimeout(hint);
-        const msg = e ? (e.name ? e.name + ': ' : '') + (e.message || String(e)) : 'bez szczegółów';
-        this.L('er', 'Nie wybrano urządzenia (' + msg + '). Jeśli nakładki nie było na liście: zamknij Visual Note, wyłącz i włącz nakładkę, spróbuj ponownie. Możesz też zaznaczyć „Pokaż wszystkie urządzenia”.');
-        return;
+      // kolejne próby: od najprostszych opcji (niektóre przeglądarki odrzucają nietypowe listy usług)
+      const attempts = all
+        ? [{ acceptAllDevices: true, optionalServices: [VN_SERVICE, ...extra] }, { acceptAllDevices: true }]
+        : [{ filters: [{ namePrefix: 'VNOTE' }], optionalServices: [VN_SERVICE, ...extra] },
+           { filters: [{ name: 'VNOTE' }], optionalServices: [VN_SERVICE] },
+           { acceptAllDevices: true, optionalServices: [VN_SERVICE] },
+           { acceptAllDevices: true }];
+      this.dev = null;
+      for (let i = 0; i < attempts.length && !this.dev; i++) {
+        const t0 = performance.now();
+        try { this.dev = await navigator.bluetooth.requestDevice(attempts[i]); }
+        catch (e) {
+          const msg = e == null ? 'bez szczegółów' : typeof e === 'object' ? ((e.name ? e.name + ': ' : '') + (e.message || JSON.stringify(e))) : String(e);
+          const quick = performance.now() - t0 < 1500;
+          this.L('er', 'Próba ' + (i + 1) + ': ' + msg + (quick ? ' – przeglądarka odrzuciła zapytanie, próbuję prostszego.' : ''));
+          if (!quick) break; // lista była pokazana i zamknięta bez wyboru
+        }
       }
       clearTimeout(hint);
+      if (!this.dev) { this.L('er', 'Nie połączono. Zamknij nRF Connect i Visual Note, wyłącz i włącz nakładkę, spróbuj ponownie.'); return; }
       this.dev.addEventListener('gattserverdisconnected', () => { this.L('er', 'Rozłączono'); this.server = null; bleUi(); });
       this.L('tx', 'Łączę z: ' + (this.dev.name || '(bez nazwy)') + ' id ' + this.dev.id);
       try { this.server = await this.dev.gatt.connect(); this.L('rx', 'Połączono'); }
