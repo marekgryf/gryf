@@ -266,7 +266,7 @@ main.wide { max-width: 1680px; }
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.8</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.9</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -641,7 +641,7 @@ akordy: chwyty     # albo: brzmiące
               <li><b>Myślnik</b> <span class="mono">-</span> przedłuża poprzedni akord o jedną część taktu.</li>
               <li><b>Zmiana metrum lub tempa</b> w dowolnym miejscu: osobny wiersz <span class="mono">metrum: 5/4</span> albo wewnątrz taktu <span class="mono">{5/4}</span>, <span class="mono">{bpm 140}</span>.</li>
               <li><b>Skala:</b> bez zapisu dobieram ją do akordu i tonacji. Własną dodasz po <span class="mono">@</span>: <span class="mono">@dorian</span>, <span class="mono">@E:phrygian-dominant</span>, <span class="mono">@akord</span> (same dźwięki akordu), <span class="mono">@tonacja</span>. Nazwy skopiujesz z zakładki Skale.</li>
-              <li><b>Pozycje skali:</b> po nazwie skali dopisz <span class="mono">~</span> i numery pozycji 1–5, np. <span class="mono">@minor-pentatonic~1,4</span>; przy skali dobranej automatycznie wystarczy <span class="mono">@~2</span>. <span class="mono">~cały</span> to cały gryf. Pozycja 1 zaczyna się od toniku na najgrubszej strunie, kolejne idą w górę gryfu. Najprościej ustawisz je w Pracowni przyciskami 1–5.</li>
+              <li><b>Pozycje skali:</b> po nazwie skali dopisz <span class="mono">~</span> i numery pozycji 1–5, np. <span class="mono">@minor-pentatonic~1,4</span>; przy skali dobranej automatycznie wystarczy <span class="mono">@~2</span>. <span class="mono">~cały</span> to cały gryf. Pozycje to klasyczne pudełka pentatoniki molowej (1 = znane pudełko od toniku na najgrubszej strunie, 2–5 kolejno w górę gryfu); w skalach durowych liczone od pentatoniki równoległej molowej (C-dur → a-moll), a pozostałe dźwięki skali dopisane w obrębie pudełka, najwyżej 3 na strunę. Najprościej ustawisz je w Pracowni przyciskami 1–5.</li>
               <li><b>Kapodaster:</b> <span class="mono">capo: 3</span>. Przy <span class="mono">akordy: chwyty</span> piszesz chwyty tak, jak bez kapodastra (G, C, D), a aplikacja wie, że brzmią wyżej. Przy <span class="mono">akordy: brzmiące</span> piszesz prawdziwe dźwięki, a aplikacja pokaże chwyty z kapodastrem.</li>
               <li><b>Własny chwyt:</b> po znaku <span class="mono">=</span> sześć strun od niskiej E, <span class="mono">x</span> to struna tłumiona: <span class="mono">C=x32010</span>, <span class="mono">F=133211</span>, dla progów powyżej 9 z myślnikami: <span class="mono">D=x-5-7-7-7-5</span>. Progi liczysz od kapodastra.</li>
               <li><b>Akordy:</b> C, Cm, C7, Cmaj7, Cm7b5, Cdim7, C7alt, C7b9#11, Csus4, C6/9, C/E, N.C. (bez akordu) i inne.</li>
@@ -1535,34 +1535,88 @@ akordy: chwyty     # albo: brzmiące
     return set;
   }
   function posString(set) { return set && set !== 'all' && set.size ? [...set].sort().join(',') : null; }
-  // pięć kotwic: dźwięki pentatoniki (molowej lub durowej) w obrębie skali, pozycja 1 = tonik
-  function positionAnchors(mask) {
-    const iv = intervalsFromMask(mask); const has = i => !!(mask & (1 << i));
-    const cand = has(3) && !has(4) ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
+  // Pozycje 1–5 = klasyczne pudełka pentatoniki molowej (dla skal durowych: pentatonika molowa równoległa, np. C-dur → a-moll).
+  // Pudełko: 2 dźwięki pentatoniki na strunę; pozostałe dźwięki skali dopisywane w obrębie pudełka (najwyżej 3 na strunę).
+  function pentaBase(mask, root) {
+    const has = i => !!(mask & (1 << i));
+    // skale molowe: pentatonika molowa od toniku; durowe z sekstą wielką: od tercji... tj. pentatonika molowa równoległa (C-dur → a-moll);
+    // pozostałe (np. frygijska dominantowa): pentatonika molowa od toniku z dźwiękami dopasowanymi do skali
+    const mr = has(3) && !has(4) ? root : has(4) && has(9) ? (root + 9) % 12 : root;
+    const pcs = intervalsFromMask(mask).map(i => (root + i) % 12);
     const out = [];
-    for (const c of cand) {
-      let best = null; for (const i of iv) if (!out.includes(i) && (best == null || Math.abs(i - c) < Math.abs(best - c))) best = i;
-      if (best != null && !out.includes(best)) out.push(best);
+    for (const c of [0, 3, 5, 7, 10].map(i => (mr + i) % 12)) {
+      if (pcs.includes(c)) { if (!out.includes(c)) out.push(c); continue; }
+      let best = null, bd = 99;
+      for (const p of pcs) { if (out.includes(p)) continue; const d = Math.min((p - c + 12) % 12, (c - p + 12) % 12); if (d < bd) { bd = d; best = p; } }
+      if (best != null) out.push(best);
     }
-    for (const i of iv) if (out.length < 5 && !out.includes(i)) out.push(i);
-    return out.sort((a, b) => a - b).slice(0, 5);
+    return out; // kolejność = pozycje 1..5 (od toniku pentatoniki molowej)
   }
-  // okna progów [od, do] dla wybranych pozycji; kotwica na najniższej strunie, okno od kotwica−1 do kotwica+3, także oktawę wyżej/niżej
-  function positionWindows(mask, root, tuning, posSet, maxFret) {
+  function positionBox(mask, root, tuning, k, startFret, maxFret) {
+    const base = pentaBase(mask, root); if (base.length < 2) return [];
+    const penta = new Set(base);
+    const scalePcs = new Set(intervalsFromMask(mask).map(i => (root + i) % 12));
+    const start = tuning[0] + startFret;
+    // kolejne wysokości pentatoniki od dźwięku startowego
+    const seq = []; for (let p = start; seq.length < 14 && p < start + 48; p++) if (penta.has(p % 12)) seq.push(p);
+    const strings = tuning.map(() => []);
+    let idx = 0;
+    for (let s = 0; s < tuning.length; s++) {
+      for (let n = 0; n < 2 && idx < seq.length; n++) {
+        strings[s].push(seq[idx++]);
+      }
+    }
+    const all = strings.flat(); if (!all.length) return [];
+    const frets = []; strings.forEach((arr, s) => arr.forEach(p => frets.push(p - tuning[s])));
+    const minF = Math.min(...frets), maxF = Math.max(...frets);
+    const lo = Math.min(...all), hi = Math.max(...all);
+    const boxSet = new Set(all);
+    for (let q = lo + 1; q < hi; q++) {
+      if (!scalePcs.has(q % 12) || boxSet.has(q)) continue;
+      const cands = [];
+      for (let s = 0; s < tuning.length; s++) {
+        const arr = strings[s]; if (!arr.length) continue;
+        const top = arr[arr.length - 1], bot = arr[0];
+        if (q > bot && q < top) cands.push(s);
+        const nx = strings[s + 1];
+        if (nx && nx.length && q > top && q < nx[0]) cands.push(s, s + 1);
+      }
+      if (!cands.length) continue;
+      let best = null, bs = 1e9;
+      for (const s of [...new Set(cands)]) {
+        const f = q - tuning[s]; if (f < 0) continue;
+        const out = f < minF ? minF - f : f > maxF ? f - maxF : 0;
+        const sc = out * 10 + (strings[s].length >= 3 ? 5 : 0) - s * 0.1;
+        if (sc < bs) { bs = sc; best = s; }
+      }
+      if (best != null) { strings[best].push(q); strings[best].sort((a, b) => a - b); }
+    }
+    const cells = [];
+    strings.forEach((arr, s) => arr.forEach(p => { const f = p - tuning[s]; if (f >= 0 && f <= maxFret) cells.push([s, f]); }));
+    return cells;
+  }
+  // zbiór komórek (struna*100+próg) dla wybranych pozycji; każda pozycja także oktawę wyżej, jeśli mieści się na gryfie
+  function positionCells(mask, root, tuning, posSet, maxFret) {
     if (!posSet || posSet === 'all' || !posSet.size || mask == null) return null;
-    const anchors = positionAnchors(mask); const low = tuning[0]; const out = [];
-    anchors.forEach((a, k) => {
-      if (!posSet.has(k + 1)) return;
-      const base = ((root + a - low) % 12 + 12) % 12;
-      for (const f of [base - 12, base, base + 12, base + 24]) {
-        const lo = f - 1, hi = f + 3;
-        const L = Math.max(0, lo), Hh = Math.min(maxFret, hi);
-        if (Hh - L >= 2) out.push([L, Hh, k + 1]); // pomijamy szczątkowe fragmenty przy krawędziach gryfu
+    const base = pentaBase(mask, root); const set = new Set();
+    base.forEach((pc, i) => {
+      if (!posSet.has(i + 1)) return;
+      const f0 = ((pc - tuning[0]) % 12 + 12) % 12;
+      for (const sf of [f0, f0 + 12]) {
+        const cells = positionBox(mask, root, tuning, i + 1, sf, maxFret);
+        const inNeck = cells.length;
+        const total = positionBox(mask, root, tuning, i + 1, sf, 99).length;
+        if (inNeck >= Math.max(4, total * 0.5)) cells.forEach(([s, f]) => set.add(s * 100 + f));
+      }
+      // pozycja zaczynająca się nad gryfem może zmieścić się oktawę niżej (start ujemny = puste struny)
+      if (f0 >= 10) {
+        const cells = positionBox(mask, root, tuning, i + 1, f0 - 12, maxFret);
+        const total = positionBox(mask, root, tuning, i + 1, f0, 99).length; // pełne pudełko (bez obcięcia)
+        if (cells.length >= total * 0.8) cells.forEach(([s, f]) => set.add(s * 100 + f));
       }
     });
-    return out;
+    return set;
   }
-  const inWindows = (w, f) => !w || w.some(([lo, hi]) => f >= lo && f <= hi);
 
   function fretState(opts) {
     // opts: {tuning, frets, root, scaleMask (rel. do scaleRoot), scaleRoot, chord, fretMin, fretMax, show:'both'|'scale'|'chord'}
@@ -1574,7 +1628,8 @@ akordy: chwyty     # albo: brzmiące
         const pc = (opts.tuning[s] + f) % 12;
         let cell = null;
         const capo = opts.capo || 0;
-        const inRange = f >= capo && (f >= (opts.fretMin || 0) || f === capo) && f <= (opts.fretMax ?? 99) && inWindows(opts.windows, f);
+        const inRange = f >= capo && (f >= (opts.fretMin || 0) || f === capo) && f <= (opts.fretMax ?? 99);
+        if (inRange && opts.cells && !opts.cells.has(s * 100 + f)) { row.push(null); continue; }
         if (inRange && (show === 'neg' || show === 'negChord')) {
           // negatyw: tylko dźwięki SPOZA skali (opcjonalnie dźwięki akordu jako punkty odniesienia)
           const ch = opts.chord;
@@ -1762,7 +1817,7 @@ akordy: chwyty     # albo: brzmiące
   }
 
   G.VF = {
-    parsePositions, posString, positionAnchors, positionWindows,
+    parsePositions, posString, pentaBase, positionBox, positionCells,
     applyTiming, lineTokens, rewriteTokens, composeToken, setDirective,
     transposeChord, parseShape, shapeText, chordVoicings, assignVoicings, voicingState,
     addScale, ALIAS, SHARP, FLAT, INTERVAL_NAMES, parseNote, noteName, maskFromIntervals, intervalsFromMask, rotateMask, bitCount, norm,
@@ -1780,7 +1835,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '1.8';
+  const VERSION = '1.9';
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
@@ -2786,12 +2841,12 @@ odliczanie: 1
     }
     return V.fretState({
       tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : S.show, capo: P.capo || 0,
-      scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: S.fretMin, fretMax: S.fretMax, windows: evWindows(ev, ch, sRoot)
+      scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: S.fretMin, fretMax: S.fretMax, cells: evWindows(ev, ch, sRoot)
     });
   }
   function evWindows(ev, ch, sRoot) {
     if (!ev.posSet) return null;
-    return ev.scaleObj && !ev.chordOnly ? V.positionWindows(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionWindows(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets);
+    return ev.scaleObj && !ev.chordOnly ? V.positionCells(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionCells(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets);
   }
   const posLabel = ev => ev && ev.posSet ? ' · poz. ' + [...ev.posSet].sort().join('+') : '';
   function previewSetFor(nx, nj) {
@@ -3120,8 +3175,8 @@ odliczanie: 1
     $('#scTags').innerHTML = [s.size + ' dźwięków', s.family, 'nr ' + SC.mask].map(t => `<span class="tag">${esc(t)}</span>`).join('');
     $('#scIvs').innerHTML = V.INTERVAL_NAMES.map((n, i) => `<button data-iv="${i}" aria-pressed="${!!(SC.mask & (1 << i))}" class="${i === 0 ? 'root' : ''}">${esc(prettyAcc(n))}<br><span style="font-weight:400;opacity:.8">${esc(prettyAcc(V.noteName(SC.root + i, flat)))}</span></button>`).join('');
     const ch = SC.chordShown;
-    const win = SC.pos && SC.pos.size ? V.positionWindows(SC.mask, SC.root, tuningArr(), SC.pos, S.frets) : null;
-    const state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: SC.mask, scaleRoot: SC.root, show: NEG ? (ch ? 'negChord' : 'neg') : (ch ? 'both' : 'scale'), fretMin: 0, fretMax: 99, capo: P.capo || 0, windows: win });
+    const win = SC.pos && SC.pos.size ? V.positionCells(SC.mask, SC.root, tuningArr(), SC.pos, S.frets) : null;
+    const state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: SC.mask, scaleRoot: SC.root, show: NEG ? (ch ? 'negChord' : 'neg') : (ch ? 'both' : 'scale'), fretMin: 0, fretMax: 99, capo: P.capo || 0, cells: win });
     $$('#scPos [data-pos]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pos === 'all' ? !(SC.pos && SC.pos.size) : !!(SC.pos && SC.pos.has(+b.dataset.pos)))));
     fbScale.update(state, null, flat);
     SC.state = state;
@@ -3618,7 +3673,7 @@ odliczanie: 1
     const sRoot = ev.scaleRootPc == null ? null : (ev.scaleRootPc + shift) % 12;
     if (ST.view === 'grip') state = V.voicingState(v, ch, tuningArr(), S.frets, capo, null, 0);
     else if (NEG) state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: 'negChord', capo, scaleMask: ev.chordOnly || !ev.scaleObj ? ch.mask : ev.scaleObj.mask, scaleRoot: ev.chordOnly || !ev.scaleObj ? ch.root : sRoot, fretMin: 0, fretMax: 99 });
-    else state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : 'both', capo, scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: 0, fretMax: 99, windows: ev.posSet ? (ev.scaleObj && !ev.chordOnly ? V.positionWindows(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionWindows(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets)) : null });
+    else state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : 'both', capo, scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: 0, fretMax: 99, cells: ev.posSet ? (ev.scaleObj && !ev.chordOnly ? V.positionCells(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionCells(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets)) : null });
     fbStudio.fb.cfg = '';
     const fl = spellFlat(ev.chord.root, ev.scaleObj ? ev.scaleObj.mask : ev.chord.mask, ev.chord.flat);
     fbStudio.fb.update(state, null, fl, shift);
