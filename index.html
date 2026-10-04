@@ -266,7 +266,7 @@ main.wide { max-width: 1680px; }
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.5</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.6</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -1719,7 +1719,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '1.5';
+  const VERSION = '1.6';
 
   /* ---------- pamięć ---------- */
   const store = {
@@ -2449,23 +2449,53 @@ odliczanie: 1
       if (vn) {
         if (S.enc.mode !== 'vnote') { Object.assign(S.enc, { mode: 'vnote', order: 'fret', str: 'high', serp: false, revF: false, resp: true, gap: 0 }); save(); syncEncUi(); this.L('rx', 'Rozpoznano Visual Note – ustawiłem sterownik VNOTE.'); }
         this.vnLive = false;
-        try { await this.write(new Uint8Array([0xc0])); } catch (e) { this.L('er', 'Powitanie: ' + e.message); }
+        this.vnHs = this.vnHandshake();
+        await this.vnHs;
         clearInterval(this.vnTimer);
         this.vnTimer = setInterval(() => { if (this.server && S.enc.mode === 'vnote') this.write(new Uint8Array([0xb0])).catch(() => { }); }, 5000);
       }
       renderTree(); bleUi();
     },
+    // sekwencja otwarcia odtworzona z nagrania oficjalnej aplikacji
+    async vnExchange(bytes, expect, ms) {
+      const got = new Promise(res => { this.vnExpect = { op: expect, res }; setTimeout(() => res(null), ms || 800); });
+      await this.write(new Uint8Array(bytes));
+      const r = await got; this.vnExpect = null; return r;
+    },
+    async vnHandshake() {
+      const H = s => s.split(' ').map(x => parseInt(x, 16));
+      const steps = [
+        ['c0', 0xc1, 'powitanie'],
+        ['ae aa c1 08 9d 53 4b 53 03 ea a9 a6 66 c3 94 83 d2', 0xaf, 'hasło 1', 'af 59 62 c1 96 cc cf 50 56 27 a9 04 29 8a 16 54 bf'],
+        ['ae 6c df c3 8f 3b fd 0c 5e 02 cc f9 71 f3 a3 95 b9', 0xaf, 'hasło 2', 'af 10 9c 0d e7 8d 07 0e 36 7f 7d 5d 37 ab f7 cc a4'],
+        ['c2', 0xc3, 'konfiguracja'],
+        ['b3', 0xb4, 'tryb'],
+        ['b0', 0xb1, 'bateria']
+      ];
+      for (const [tx, op, name, want] of steps) {
+        try {
+          const r = await this.vnExchange(H(tx), op);
+          if (!r) { this.L('er', 'Nakładka nie odpowiedziała na: ' + name); continue; }
+          const rh = hex(r).toLowerCase();
+          if (want) this.L(rh === want ? 'rx' : 'er', name + (rh === want ? ': odpowiedź zgodna z nagraniem' : ': odpowiedź INNA niż w nagraniu'));
+        } catch (e) { this.L('er', name + ': ' + e.message); }
+      }
+    },
     vnRx(u) {
       if (!u.length) return;
+      if (this.vnExpect && (u[0] === this.vnExpect.op || u.length === 1)) { const x = this.vnExpect; this.vnExpect = null; x.res(u); }
       if (u[0] === 0xb1 && u.length >= 2) { this.battery = u[1]; bleUi(); }
       else if (u[0] === 0x0a) { this.vnAck = true; if (this.vnWait) { this.vnWait(); this.vnWait = null; } }
     },
     async vnStart() {
+      if (this.vnHs) await this.vnHs;
       if (this.vnLive) return;
       this.vnAck = false;
       const ack = new Promise(res => { this.vnWait = res; setTimeout(res, 600); });
       await this.write(new Uint8Array([0xac]));
       await ack;
+      // oficjalna aplikacja zawsze wysyła najpierw pusty obraz
+      await this.write(vnPayload(Array.from({ length: nLeds() }, () => [0, 0, 0])));
       this.vnLive = true;
     },
     async vnStop() {
