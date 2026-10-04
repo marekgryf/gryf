@@ -262,11 +262,13 @@ main.wide { max-width: 1680px; }
 .st-list .song-item .t { white-space: normal; overflow: visible; }
 .row > h2.grow { min-width: 220px; }
 
+.pos-pick{display:flex;flex-direction:column;gap:6px}.pos-pick .seg button{min-width:52px;line-height:1.15}.pos-sub{font-size:.72em;font-weight:400;opacity:.8}.pos-lab{width:82px;flex:none}
+
 </style>
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.9</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.0</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -475,7 +477,7 @@ main.wide { max-width: 1680px; }
             <div class="ivs" id="scIvs" aria-label="Interwały skali – dotknij, aby zmienić"></div>
             <p class="small muted">Dotknij interwału, aby zbudować własną skalę. Nazwa pojawi się, jeśli taki układ ma nazwę.</p>
             <div class="fb-wrap" id="fbScale"></div>
-            <div class="row"><span class="small muted">Pozycje:</span><div class="seg" role="group" aria-label="Pozycje" id="scPos"><button data-pos="1">1</button><button data-pos="2">2</button><button data-pos="3">3</button><button data-pos="4">4</button><button data-pos="5">5</button><button data-pos="all" aria-pressed="true">Cały gryf</button></div></div>
+            <div class="stack" style="gap:4px"><span class="small muted">Pozycje (najwyżej 3 dźwięki na strunę):</span><div id="scPos"></div></div>
             <div class="row">
               <button class="btn primary" id="scShow">Pokaż na diodach</button>
               <button class="btn" id="scCopy">Kopiuj zapis do utworu</button>
@@ -641,7 +643,7 @@ akordy: chwyty     # albo: brzmiące
               <li><b>Myślnik</b> <span class="mono">-</span> przedłuża poprzedni akord o jedną część taktu.</li>
               <li><b>Zmiana metrum lub tempa</b> w dowolnym miejscu: osobny wiersz <span class="mono">metrum: 5/4</span> albo wewnątrz taktu <span class="mono">{5/4}</span>, <span class="mono">{bpm 140}</span>.</li>
               <li><b>Skala:</b> bez zapisu dobieram ją do akordu i tonacji. Własną dodasz po <span class="mono">@</span>: <span class="mono">@dorian</span>, <span class="mono">@E:phrygian-dominant</span>, <span class="mono">@akord</span> (same dźwięki akordu), <span class="mono">@tonacja</span>. Nazwy skopiujesz z zakładki Skale.</li>
-              <li><b>Pozycje skali:</b> po nazwie skali dopisz <span class="mono">~</span> i numery pozycji 1–5, np. <span class="mono">@minor-pentatonic~1,4</span>; przy skali dobranej automatycznie wystarczy <span class="mono">@~2</span>. <span class="mono">~cały</span> to cały gryf. Pozycje to klasyczne pudełka pentatoniki molowej (1 = znane pudełko od toniku na najgrubszej strunie, 2–5 kolejno w górę gryfu); w skalach durowych liczone od pentatoniki równoległej molowej (C-dur → a-moll), a pozostałe dźwięki skali dopisane w obrębie pudełka, najwyżej 3 na strunę. Najprościej ustawisz je w Pracowni przyciskami 1–5.</li>
+              <li><b>Pozycje skali:</b> po nazwie skali dopisz <span class="mono">~</span> i pozycje, np. <span class="mono">@dorian~1,1A</span>; przy skali dobranej automatycznie wystarczy <span class="mono">@~2</span>. <span class="mono">~cały</span> to cały gryf. Pozycja zaczyna się od dźwięku skali na grubej strunie: <b>1</b> od toniku, <b>2–5</b> od kolejnych dźwięków pentatoniki skali (molowa: 1 b3 4 5 b7, durowa: 1 2 3 5 6), czyli kolejne pudełka w górę gryfu. Każdą pozycję masz w dwóch odmianach: <b>1–5</b> od struny E (6.) i <b>1A–5A</b> od tego samego dźwięku na strunie A (5.). Przykład: D-dorycka <span class="mono">~1</span> zaczyna się od D na 10. progu struny E, a <span class="mono">~1A</span> od D na 5. progu struny A. Okno pozycji to próg startowy −1 do +3, najwyżej 3 dźwięki na strunę. Przyciski w Pracowni i w Skalach pokazują dźwięk startowy i próg, np. „C·3”.</li>
               <li><b>Kapodaster:</b> <span class="mono">capo: 3</span>. Przy <span class="mono">akordy: chwyty</span> piszesz chwyty tak, jak bez kapodastra (G, C, D), a aplikacja wie, że brzmią wyżej. Przy <span class="mono">akordy: brzmiące</span> piszesz prawdziwe dźwięki, a aplikacja pokaże chwyty z kapodastrem.</li>
               <li><b>Własny chwyt:</b> po znaku <span class="mono">=</span> sześć strun od niskiej E, <span class="mono">x</span> to struna tłumiona: <span class="mono">C=x32010</span>, <span class="mono">F=133211</span>, dla progów powyżej 9 z myślnikami: <span class="mono">D=x-5-7-7-7-5</span>. Progi liczysz od kapodastra.</li>
               <li><b>Akordy:</b> C, Cm, C7, Cmaj7, Cm7b5, Cdim7, C7alt, C7b9#11, Csus4, C6/9, C/E, N.C. (bez akordu) i inne.</li>
@@ -1347,7 +1349,7 @@ akordy: chwyty     # albo: brzmiące
     }
     song.lenQ = q; song.lenSec = sec;
     // scal sąsiednie powiązane zdarzenia tego samego akordu (ta sama skala) – dla wyświetlacza zostawiamy osobno
-    for (const e of song.events) { resolveEventScale(e, song.key); e.posSet = e.positions !== undefined && e.positions !== null ? e.positions : song.positions; if (e.positions === 'all') e.posSet = null; }
+    for (const e of song.events) { resolveEventScale(e, song.key); e.posSet = e.positions !== undefined && e.positions !== null ? e.positions : song.positions; if (e.posSet === 'all' || (e.posSet && !e.posSet.size)) e.posSet = null; }
     song.textOffset = song.offset;
     return song;
   }
@@ -1527,97 +1529,64 @@ akordy: chwyty     # albo: brzmiące
   };
   // stan wyświetlania -> mapa [struna][próg] = {role, cls}
   /* ---------- pozycje skali (1–5) ---------- */
+  // Pozycje: „n” = pozycja od n-tego dźwięku pentatoniki skali na strunie E (6.), „nA” = ten sam dźwięk startowy na strunie A (5.).
+  // Pozycja 1 zaczyna się od toniku. Okno: od progu startowego −1 do +3 (palec na próg), najwyżej 3 dźwięki na strunę.
   function parsePositions(str) {
     const t = String(str).trim().toLowerCase();
     if (!t || /^(all|cal|cał|caly|cały|wszystk)/.test(t)) return 'all';
-    const set = new Set((t.match(/[1-5]/g) || []).map(Number));
-    if (!set.size || /[06-9]/.test(t.replace(/[^0-9]/g, ''))) throw new Error('Pozycje: wpisz cyfry 1–5, np. ~2,5 albo ~cały');
+    const set = new Set();
+    for (const it of t.split(/[,+;\s]+/).filter(Boolean)) {
+      const m = /^([1-5])(?:\/([56])|([ea]))?$/.exec(it);
+      if (m) { set.add(m[1] + (m[2] === '5' || m[3] === 'a' ? 'A' : '')); continue; }
+      if (/^[1-5]{2,5}$/.test(it)) { for (const d of it) set.add(d); continue; } // dawny zapis „14”
+      throw new Error('Pozycje: wpisz np. ~1,4 albo ~1A (pozycja 1 od struny A) albo ~cały');
+    }
+    if (!set.size) throw new Error('Pozycje: wpisz numery 1–5');
     return set;
   }
-  function posString(set) { return set && set !== 'all' && set.size ? [...set].sort().join(',') : null; }
-  // Pozycje 1–5 = klasyczne pudełka pentatoniki molowej (dla skal durowych: pentatonika molowa równoległa, np. C-dur → a-moll).
-  // Pudełko: 2 dźwięki pentatoniki na strunę; pozostałe dźwięki skali dopisywane w obrębie pudełka (najwyżej 3 na strunę).
+  function posString(set) { return set && set !== 'all' && set.size ? posSort([...set]).join(',') : null; }
+  const posSort = arr => arr.sort((a, b) => (parseInt(a) - parseInt(b)) || (a.length - b.length));
+  // pięć dźwięków startowych: pentatonika skali od toniku (molowa: 1 b3 4 5 b7, durowa: 1 2 3 5 6), dopasowana do dźwięków skali
   function pentaBase(mask, root) {
     const has = i => !!(mask & (1 << i));
-    // skale molowe: pentatonika molowa od toniku; durowe z sekstą wielką: od tercji... tj. pentatonika molowa równoległa (C-dur → a-moll);
-    // pozostałe (np. frygijska dominantowa): pentatonika molowa od toniku z dźwiękami dopasowanymi do skali
-    const mr = has(3) && !has(4) ? root : has(4) && has(9) ? (root + 9) % 12 : root;
+    const cand = has(3) && !has(4) ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
     const pcs = intervalsFromMask(mask).map(i => (root + i) % 12);
     const out = [];
-    for (const c of [0, 3, 5, 7, 10].map(i => (mr + i) % 12)) {
+    for (const c of cand.map(i => (root + i) % 12)) {
       if (pcs.includes(c)) { if (!out.includes(c)) out.push(c); continue; }
       let best = null, bd = 99;
       for (const p of pcs) { if (out.includes(p)) continue; const d = Math.min((p - c + 12) % 12, (c - p + 12) % 12); if (d < bd) { bd = d; best = p; } }
       if (best != null) out.push(best);
     }
-    return out; // kolejność = pozycje 1..5 (od toniku pentatoniki molowej)
+    for (const p of pcs) if (out.length < 5 && !out.includes(p)) out.push(p);
+    return out.slice(0, 5);
   }
-  function positionBox(mask, root, tuning, k, startFret, maxFret) {
-    const base = pentaBase(mask, root); if (base.length < 2) return [];
-    const penta = new Set(base);
-    const scalePcs = new Set(intervalsFromMask(mask).map(i => (root + i) % 12));
-    const start = tuning[0] + startFret;
-    // kolejne wysokości pentatoniki od dźwięku startowego
-    const seq = []; for (let p = start; seq.length < 14 && p < start + 48; p++) if (penta.has(p % 12)) seq.push(p);
-    const strings = tuning.map(() => []);
-    let idx = 0;
-    for (let s = 0; s < tuning.length; s++) {
-      for (let n = 0; n < 2 && idx < seq.length; n++) {
-        strings[s].push(seq[idx++]);
-      }
-    }
-    const all = strings.flat(); if (!all.length) return [];
-    const frets = []; strings.forEach((arr, s) => arr.forEach(p => frets.push(p - tuning[s])));
-    const minF = Math.min(...frets), maxF = Math.max(...frets);
-    const lo = Math.min(...all), hi = Math.max(...all);
-    const boxSet = new Set(all);
-    for (let q = lo + 1; q < hi; q++) {
-      if (!scalePcs.has(q % 12) || boxSet.has(q)) continue;
-      const cands = [];
-      for (let s = 0; s < tuning.length; s++) {
-        const arr = strings[s]; if (!arr.length) continue;
-        const top = arr[arr.length - 1], bot = arr[0];
-        if (q > bot && q < top) cands.push(s);
-        const nx = strings[s + 1];
-        if (nx && nx.length && q > top && q < nx[0]) cands.push(s, s + 1);
-      }
-      if (!cands.length) continue;
-      let best = null, bs = 1e9;
-      for (const s of [...new Set(cands)]) {
-        const f = q - tuning[s]; if (f < 0) continue;
-        const out = f < minF ? minF - f : f > maxF ? f - maxF : 0;
-        const sc = out * 10 + (strings[s].length >= 3 ? 5 : 0) - s * 0.1;
-        if (sc < bs) { bs = sc; best = s; }
-      }
-      if (best != null) { strings[best].push(q); strings[best].sort((a, b) => a - b); }
-    }
-    const cells = [];
-    strings.forEach((arr, s) => arr.forEach(p => { const f = p - tuning[s]; if (f >= 0 && f <= maxFret) cells.push([s, f]); }));
-    return cells;
+  // opis pozycji: dźwięk startowy i progi na strunie startowej
+  function positionInfo(mask, root, tuning, item, maxFret) {
+    const n = parseInt(item), s0 = /A$/.test(item) ? 1 : 0;
+    const pc = pentaBase(mask, root)[n - 1]; if (pc == null) return null;
+    const frets = []; for (let f = 0; f <= maxFret; f++) if ((tuning[s0] + f) % 12 === pc) frets.push(f);
+    return { n, string: s0 === 0 ? 6 : 5, pc, frets };
   }
-  // zbiór komórek (struna*100+próg) dla wybranych pozycji; każda pozycja także oktawę wyżej, jeśli mieści się na gryfie
   function positionCells(mask, root, tuning, posSet, maxFret) {
     if (!posSet || posSet === 'all' || !posSet.size || mask == null) return null;
-    const base = pentaBase(mask, root); const set = new Set();
-    base.forEach((pc, i) => {
-      if (!posSet.has(i + 1)) return;
-      const f0 = ((pc - tuning[0]) % 12 + 12) % 12;
-      for (const sf of [f0, f0 + 12]) {
-        const cells = positionBox(mask, root, tuning, i + 1, sf, maxFret);
-        const inNeck = cells.length;
-        const total = positionBox(mask, root, tuning, i + 1, sf, 99).length;
-        if (inNeck >= Math.max(4, total * 0.5)) cells.forEach(([s, f]) => set.add(s * 100 + f));
+    const scale = new Set(intervalsFromMask(mask).map(i => (root + i) % 12));
+    const set = new Set();
+    for (const item of posSet) {
+      const info = positionInfo(mask, root, tuning, item, maxFret); if (!info) continue;
+      const s0 = info.string === 6 ? 0 : 1;
+      for (const a of info.frets) {
+        const lo = Math.max(0, a - 1), hi = Math.min(maxFret, a + 3);
+        for (let s = 0; s < tuning.length; s++) {
+          let fs = [];
+          for (let f = (s === s0 ? a : lo); f <= hi; f++) if (scale.has((tuning[s] + f) % 12)) fs.push(f);
+          while (fs.length > 3) { if (fs[0] < a) fs.shift(); else fs.pop(); } // najwyżej 3 dźwięki na strunę
+          fs.forEach(f => set.add(s * 100 + f));
+        }
       }
-      // pozycja zaczynająca się nad gryfem może zmieścić się oktawę niżej (start ujemny = puste struny)
-      if (f0 >= 10) {
-        const cells = positionBox(mask, root, tuning, i + 1, f0 - 12, maxFret);
-        const total = positionBox(mask, root, tuning, i + 1, f0, 99).length; // pełne pudełko (bez obcięcia)
-        if (cells.length >= total * 0.8) cells.forEach(([s, f]) => set.add(s * 100 + f));
-      }
-    });
+    }
     return set;
   }
-
   function fretState(opts) {
     // opts: {tuning, frets, root, scaleMask (rel. do scaleRoot), scaleRoot, chord, fretMin, fretMax, show:'both'|'scale'|'chord'}
     const out = [];
@@ -1817,7 +1786,7 @@ akordy: chwyty     # albo: brzmiące
   }
 
   G.VF = {
-    parsePositions, posString, pentaBase, positionBox, positionCells,
+    parsePositions, posString, posSort, pentaBase, positionInfo, positionCells,
     applyTiming, lineTokens, rewriteTokens, composeToken, setDirective,
     transposeChord, parseShape, shapeText, chordVoicings, assignVoicings, voicingState,
     addScale, ALIAS, SHARP, FLAT, INTERVAL_NAMES, parseNote, noteName, maskFromIntervals, intervalsFromMask, rotateMask, bitCount, norm,
@@ -1835,7 +1804,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '1.9';
+  const VERSION = '2.0';
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
@@ -2848,7 +2817,21 @@ odliczanie: 1
     if (!ev.posSet) return null;
     return ev.scaleObj && !ev.chordOnly ? V.positionCells(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionCells(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets);
   }
-  const posLabel = ev => ev && ev.posSet ? ' · poz. ' + [...ev.posSet].sort().join('+') : '';
+  const posLabel = ev => ev && ev.posSet ? ' · poz. ' + V.posSort([...ev.posSet]).join('+') : '';
+  // przyciski pozycji: rząd od struny E (6.) i rząd od struny A (5.), pod numerem dźwięk startowy i próg
+  function posPickerHtml(mask, root, set, attr, flat) {
+    const btn = it => {
+      const inf = mask == null ? null : V.positionInfo(mask, root, tuningArr(), it, S.frets);
+      const nn = inf ? prettyAcc(V.noteName(inf.pc, flat)) : '';
+      const fr = inf && inf.frets.length ? inf.frets.join('/') : '–';
+      const tip = inf ? `Pozycja ${it}: od ${nn} na strunie ${inf.string === 6 ? 'E (6.)' : 'A (5.)'}, próg ${fr}` : '';
+      return `<button ${attr}="${it}" aria-pressed="${!!(set && set !== 'all' && set.has(it))}" title="${esc(tip)}">${it}<br><span class="pos-sub">${esc(nn)}·${fr}</span></button>`;
+    };
+    const n5 = [1, 2, 3, 4, 5];
+    return `<div class="pos-pick"><div class="row"><span class="small muted pos-lab">od struny E</span><div class="seg" role="group" aria-label="Pozycje od struny E">${n5.map(n => btn(String(n))).join('')}</div></div>
+      <div class="row"><span class="small muted pos-lab">od struny A</span><div class="seg" role="group" aria-label="Pozycje od struny A">${n5.map(n => btn(n + 'A')).join('')}</div></div>
+      <div class="row"><span class="small muted pos-lab"></span><div class="seg"><button ${attr}="all" aria-pressed="${!(set && set !== 'all' && set.size)}">Cały gryf</button></div></div></div>`;
+  }
   function previewSetFor(nx, nj) {
     const set = new Set(); if (!nx || !nx.chord || nx.chord.nc) return set;
     if (isGrip()) { const v = P.voices && P.voices[nj]; if (v && v.frets) v.frets.forEach((f, s) => { if (f >= 0) set.add(s * 100 + f); }); return set; }
@@ -3177,7 +3160,7 @@ odliczanie: 1
     const ch = SC.chordShown;
     const win = SC.pos && SC.pos.size ? V.positionCells(SC.mask, SC.root, tuningArr(), SC.pos, S.frets) : null;
     const state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: SC.mask, scaleRoot: SC.root, show: NEG ? (ch ? 'negChord' : 'neg') : (ch ? 'both' : 'scale'), fretMin: 0, fretMax: 99, capo: P.capo || 0, cells: win });
-    $$('#scPos [data-pos]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pos === 'all' ? !(SC.pos && SC.pos.size) : !!(SC.pos && SC.pos.has(+b.dataset.pos)))));
+    $('#scPos').innerHTML = posPickerHtml(SC.mask, SC.root, SC.pos, 'data-pos', flat);
     fbScale.update(state, null, flat);
     SC.state = state;
     // stopnie
@@ -3234,7 +3217,7 @@ odliczanie: 1
   }
   function bindScales() {
     SC.pos = new Set();
-    $('#scPos').onclick = e => { const b = e.target.closest('[data-pos]'); if (!b) return; if (b.dataset.pos === 'all') SC.pos.clear(); else { const n = +b.dataset.pos; SC.pos.has(n) ? SC.pos.delete(n) : SC.pos.add(n); } renderScaleDetail(); };
+    $('#scPos').onclick = e => { const b = e.target.closest('[data-pos]'); if (!b) return; if (b.dataset.pos === 'all') SC.pos.clear(); else { const n = b.dataset.pos; SC.pos.has(n) ? SC.pos.delete(n) : SC.pos.add(n); } renderScaleDetail(); };
     $('#chvPrev').onclick = () => { SC.vIdx--; renderExVoicing(); };
     $('#chvNext').onclick = () => { SC.vIdx++; renderExVoicing(); };
     $('#chvShow').onclick = () => {
@@ -3263,7 +3246,7 @@ odliczanie: 1
       lastLedKey = '';
       toast(B.server && S.enc.ready ? 'Wysłano na gryf' : 'Pokażę na diodach po połączeniu i ustawieniu sterownika');
     };
-    $('#scCopy').onclick = () => copyText(scaleToken() + (SC.pos && SC.pos.size ? '~' + [...SC.pos].sort().join(',') : ''));
+    $('#scCopy').onclick = () => copyText(scaleToken() + (SC.pos && SC.pos.size ? '~' + V.posString(SC.pos) : ''));
     $('#scSave').onclick = () => {
       const name = $('#scCustomName').value.trim(); if (!name) { toast('Wpisz nazwę skali'); return; }
       customScales.push({ name, mask: SC.mask }); store.set('customScales', customScales);
@@ -3531,7 +3514,7 @@ odliczanie: 1
         const i = idx.get(e);
         const own = e.tk && (e.tk.scaleSpec || e.tk.posStr);
         const cls = [e.tied ? 'tied' : '', own ? 'own' : '', i === ST.sel ? 'sel' : ''].filter(Boolean).join(' ');
-        const k = (e.chord.nc ? '' : e.chordOnly ? 'tylko akord' : e.scaleObj ? shortScale(e) : '') + (e.posSet ? ' · p' + [...e.posSet].sort().join('+') : '');
+        const k = (e.chord.nc ? '' : e.chordOnly ? 'tylko akord' : e.scaleObj ? shortScale(e) : '') + (e.posSet ? ' · p' + V.posSort([...e.posSet]).join('+') : '');
         return `<button data-ei="${i}" class="${cls}" style="flex-grow:${e.durQ}" title="${esc(e.chord.symbol + (k ? ' · ' + k : '') + ' · ' + fmtDur(e.durQ))}"><span class="c">${e.tied ? '–' : esc(prettyAcc(e.chord.symbol))}</span><span class="k">${esc(k)}</span></button>`;
       }).join('');
       return `<div class="sbar" style="width:${w}px" data-bar="${b.index}"><div class="hd"><span>${b.index + 1}${showM ? ' · ' + m : ''}${showT ? ' · ♩' + Math.round(bpm * 10) / 10 : ''}</span>${b.section ? `<span class="sec">${esc(b.section)}</span>` : ''}${b.index < sg.mapped ? '<span class="mp" title="Takt zmapowany z nagrania">●</span>' : ''}</div><div class="ev">${evs || '<button disabled><span class="c">·</span></button>'}</div></div>`;
@@ -3592,8 +3575,8 @@ odliczanie: 1
         <button data-sm="key" aria-pressed="${curMode === 'key'}"${ST.song.key ? '' : ' disabled title="Ustaw tonację utworu"'}>Tonacja</button>
         <button data-sm="chord" aria-pressed="${curMode === 'chord'}">Tylko akord</button>
       </div>
-      <div class="row"><span class="small muted">Pozycje:</span><div class="seg" role="group" aria-label="Pozycje skali" id="inPos">${[1, 2, 3, 4, 5].map(n => `<button data-ipos="${n}" aria-pressed="${!!(ev.posSet && ev.posSet.has(n))}">${n}</button>`).join('')}<button data-ipos="all" aria-pressed="${!ev.posSet}">Cały gryf</button></div></div>
-      ${ST.song.positions && ST.song.positions !== 'all' && !tk.posStr ? '<p class="small muted">Domyślne pozycje utworu: ' + [...ST.song.positions].sort().join('+') + '</p>' : ''}
+      <div class="stack" style="gap:4px"><span class="small muted">Pozycje (najwyżej 3 dźwięki na strunę):</span><div id="inPos">${ev.chord.nc ? '' : (() => { const sR = ev.scaleObj && !ev.chordOnly; const m = sR ? ev.scaleObj.mask : ev.chord.mask, r = sR ? ev.scaleRootPc : ev.chord.root; return posPickerHtml(m, r, ev.posSet, 'data-ipos', spellFlat(r, m, flat)); })()}</div></div>
+      ${ST.song.positions && ST.song.positions !== 'all' && !tk.posStr ? '<p class="small muted">Domyślne pozycje utworu: ' + V.posSort([...ST.song.positions]).join('+') + '</p>' : ''}
       <div class="row">
         <label class="f" style="width:96px">Tonik <select id="inRoot">${V.SHARP.map((n, i) => `<option value="${i}"${i === ST.scaleRoot ? ' selected' : ''}>${esc(prettyAcc(V.FLAT_ROOTS.has(i) && i !== 6 ? V.FLAT[i] : n))}</option>`).join('')}</select></label>
         <label class="f grow">Szukaj skali <input type="search" id="inScaleQ" value="${esc(ST.scaleQ)}" placeholder="np. dorycka, altered, 145"></label>
@@ -3711,8 +3694,8 @@ odliczanie: 1
     $('#inPos').onclick = e => {
       const b = e.target.closest('[data-ipos]'); if (!b) return;
       let set = new Set(ev.posSet ? [...ev.posSet] : []);
-      if (b.dataset.ipos === 'all') set = new Set(); else { const n = +b.dataset.ipos; set.has(n) ? set.delete(n) : set.add(n); }
-      const posStr = set.size ? [...set].sort().join(',') : (ST.song.positions && ST.song.positions !== 'all' ? 'cały' : null);
+      if (b.dataset.ipos === 'all') set = new Set(); else { const n = b.dataset.ipos; set.has(n) ? set.delete(n) : set.add(n); }
+      const posStr = set.size ? V.posString(set) : (ST.song.positions && ST.song.positions !== 'all' ? 'cały' : null);
       tokenEdit(ev, { ...tk, posStr }, false);
     };
     $('#inRoot').onchange = e => { ST.scaleRoot = +e.target.value; renderScaleChoices(ev); };
