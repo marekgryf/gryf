@@ -266,7 +266,7 @@ main.wide { max-width: 1680px; }
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.7</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.8</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -475,6 +475,7 @@ main.wide { max-width: 1680px; }
             <div class="ivs" id="scIvs" aria-label="Interwały skali – dotknij, aby zmienić"></div>
             <p class="small muted">Dotknij interwału, aby zbudować własną skalę. Nazwa pojawi się, jeśli taki układ ma nazwę.</p>
             <div class="fb-wrap" id="fbScale"></div>
+            <div class="row"><span class="small muted">Pozycje:</span><div class="seg" role="group" aria-label="Pozycje" id="scPos"><button data-pos="1">1</button><button data-pos="2">2</button><button data-pos="3">3</button><button data-pos="4">4</button><button data-pos="5">5</button><button data-pos="all" aria-pressed="true">Cały gryf</button></div></div>
             <div class="row">
               <button class="btn primary" id="scShow">Pokaż na diodach</button>
               <button class="btn" id="scCopy">Kopiuj zapis do utworu</button>
@@ -628,6 +629,8 @@ bpm: 80 q.         # tempo w ćwierćnutach z kropką
 | Dm G C | %  |     # % = powtórz poprzedni takt
 | {5/4} F:h. C@lydian:h |
 | Am@A:dorian |      # własna skala dla akordu
+| Am@minor-pentatonic~2,5 |  # tylko pozycje 2 i 5
+pozycje: 1         # domyślne pozycje dla całego utworu
 
 capo: 3            # kapodaster na 3. progu
 akordy: chwyty     # albo: brzmiące
@@ -638,6 +641,7 @@ akordy: chwyty     # albo: brzmiące
               <li><b>Myślnik</b> <span class="mono">-</span> przedłuża poprzedni akord o jedną część taktu.</li>
               <li><b>Zmiana metrum lub tempa</b> w dowolnym miejscu: osobny wiersz <span class="mono">metrum: 5/4</span> albo wewnątrz taktu <span class="mono">{5/4}</span>, <span class="mono">{bpm 140}</span>.</li>
               <li><b>Skala:</b> bez zapisu dobieram ją do akordu i tonacji. Własną dodasz po <span class="mono">@</span>: <span class="mono">@dorian</span>, <span class="mono">@E:phrygian-dominant</span>, <span class="mono">@akord</span> (same dźwięki akordu), <span class="mono">@tonacja</span>. Nazwy skopiujesz z zakładki Skale.</li>
+              <li><b>Pozycje skali:</b> po nazwie skali dopisz <span class="mono">~</span> i numery pozycji 1–5, np. <span class="mono">@minor-pentatonic~1,4</span>; przy skali dobranej automatycznie wystarczy <span class="mono">@~2</span>. <span class="mono">~cały</span> to cały gryf. Pozycja 1 zaczyna się od toniku na najgrubszej strunie, kolejne idą w górę gryfu. Najprościej ustawisz je w Pracowni przyciskami 1–5.</li>
               <li><b>Kapodaster:</b> <span class="mono">capo: 3</span>. Przy <span class="mono">akordy: chwyty</span> piszesz chwyty tak, jak bez kapodastra (G, C, D), a aplikacja wie, że brzmią wyżej. Przy <span class="mono">akordy: brzmiące</span> piszesz prawdziwe dźwięki, a aplikacja pokaże chwyty z kapodastrem.</li>
               <li><b>Własny chwyt:</b> po znaku <span class="mono">=</span> sześć strun od niskiej E, <span class="mono">x</span> to struna tłumiona: <span class="mono">C=x32010</span>, <span class="mono">F=133211</span>, dla progów powyżej 9 z myślnikami: <span class="mono">D=x-5-7-7-7-5</span>. Progi liczysz od kapodastra.</li>
               <li><b>Akordy:</b> C, Cm, C7, Cmaj7, Cm7b5, Cdim7, C7alt, C7b9#11, Csus4, C6/9, C/E, N.C. (bez akordu) i inne.</li>
@@ -1188,7 +1192,7 @@ akordy: chwyty     # albo: brzmiące
   /* ---------- parser utworu ---------- */
   function parseSong(text) {
     const lines = text.replace(/\r/g, '').split('\n');
-    const song = { capo: null, capoMode: null, title: 'Bez tytułu', artist: '', key: null, bars: [], events: [], sections: [], countIn: 1, offset: 0, errors: [], warnings: [] };
+    const song = { positions: null, capo: null, capoMode: null, title: 'Bez tytułu', artist: '', key: null, bars: [], events: [], sections: [], countIn: 1, offset: 0, errors: [], warnings: [] };
     let meter = parseMeter('4/4'), qpm = 120, pendingSection = null, prevBarEvents = null;
     let lastEvent = null;
 
@@ -1202,6 +1206,7 @@ akordy: chwyty     # albo: brzmiące
         else if (['metrum', 'meter', 'time', 'takt'].includes(k)) meter = parseMeter(v);
         else if (['capo', 'kapodaster', 'kapo'].includes(k)) { const c = parseInt(v, 10); if (!(c >= 0 && c <= 12)) throw new Error('Kapodaster: podaj próg 0–12'); song.capo = c; }
         else if (['akordy', 'zapis', 'chords'].includes(k)) { const n = norm(v); if (/^(chwyt|ksztalt|shape)/.test(n)) song.capoMode = 'shapes'; else if (/^(brzm|real|concert|dzwiek)/.test(n)) song.capoMode = 'concert'; else throw new Error('akordy: wpisz „chwyty” albo „brzmiące”'); }
+        else if (['pozycje', 'pozycja', 'positions'].includes(k)) song.positions = parsePositions(v);
         else if (['odliczanie', 'countin', 'count'].includes(k)) song.countIn = Math.max(0, Math.min(4, parseInt(v, 10) || 0));
         else if (['offset', 'start', 'poczatek'].includes(k)) song.offset = parseFloat(v.replace(',', '.')) || 0;
         else if (['sekcja', 'section', 'czesc'].includes(k)) pendingSection = v.trim();
@@ -1282,7 +1287,11 @@ akordy: chwyty     # albo: brzmiące
           let chord = null, cont = false;
           if (tok === '-' || tok === '.' || tok === '–' || tok === '/' || tok === '%') cont = true;
           else chord = parseChord(tok);
-          let scale = null, scaleRoot = null, scaleMode = null;
+          let scale = null, scaleRoot = null, scaleMode = null, positions = null, posStr = null;
+          if (scaleSpec != null && scaleSpec.includes('~')) {
+            const ti = scaleSpec.indexOf('~'); posStr = scaleSpec.slice(ti + 1); scaleSpec = scaleSpec.slice(0, ti);
+            positions = parsePositions(posStr);
+          }
           if (scaleSpec) {
             const sm = /^([A-Ha-h][#b]*)?:(.+)$/.exec(scaleSpec);
             let sname = scaleSpec;
@@ -1291,7 +1300,7 @@ akordy: chwyty     # albo: brzmiące
             else if (/^(key|tonacja)$/i.test(sname)) scaleMode = 'key';
             else { scale = findScale(sname.replace(/[-_]/g, ' ')); if (!scale) throw new Error('Nie znam skali „' + sname + '”'); }
           }
-          parsed.push({ src: t, chord, cont, dur, scale, scaleRoot, scaleMode, shape, tk: { sym: tok, shapeStr, durStr, scaleSpec }, loc: synthetic ? null : { ln, cell: ci, tok: ti } });
+          parsed.push({ src: t, chord, cont, dur, scale, scaleRoot, scaleMode, shape, positions, tk: { sym: tok, shapeStr, durStr, scaleSpec: scaleSpec || null, posStr }, loc: synthetic ? null : { ln, cell: ci, tok: ti } });
         } catch (e) { song.errors.push({ line: ln, msg: e.message }); }
       }
       // rozkład długości
@@ -1316,7 +1325,7 @@ akordy: chwyty     # albo: brzmiące
           else if (target) bar.events.push({ ...target, bar: bar.index, startInBar: pos, durQ: d, tied: true, absorbed: [], tieLoc: p.loc, rep: rp });
           else bar.events.push({ chord: { nc: true, symbol: 'N.C.' }, bar: bar.index, startInBar: pos, durQ: d, src: '-', loc: p.loc, tk: p.tk, absorbed: [], rep: rp });
         } else {
-          bar.events.push({ chord: p.chord, scale: p.scale, scaleRoot: p.scaleRoot, scaleMode: p.scaleMode, shape: p.shape, bar: bar.index, startInBar: pos, durQ: d, src: p.src, loc: p.loc, tk: p.tk, absorbed: [], rep: rp });
+          bar.events.push({ chord: p.chord, scale: p.scale, scaleRoot: p.scaleRoot, scaleMode: p.scaleMode, shape: p.shape, positions: p.positions, bar: bar.index, startInBar: pos, durQ: d, src: p.src, loc: p.loc, tk: p.tk, absorbed: [], rep: rp });
         }
         lastEvent = bar.events[bar.events.length - 1] || lastEvent;
         pos += d;
@@ -1338,7 +1347,7 @@ akordy: chwyty     # albo: brzmiące
     }
     song.lenQ = q; song.lenSec = sec;
     // scal sąsiednie powiązane zdarzenia tego samego akordu (ta sama skala) – dla wyświetlacza zostawiamy osobno
-    for (const e of song.events) resolveEventScale(e, song.key);
+    for (const e of song.events) { resolveEventScale(e, song.key); e.posSet = e.positions !== undefined && e.positions !== null ? e.positions : song.positions; if (e.positions === 'all') e.posSet = null; }
     song.textOffset = song.offset;
     return song;
   }
@@ -1409,7 +1418,8 @@ akordy: chwyty     # albo: brzmiące
     return lines.join('\n');
   }
   function composeToken(tk) {
-    return tk.sym + (tk.shapeStr ? '=' + tk.shapeStr : '') + (tk.durStr ? ':' + tk.durStr : '') + (tk.scaleSpec ? '@' + tk.scaleSpec : '');
+    const sc = (tk.scaleSpec || '') + (tk.posStr ? '~' + tk.posStr : '');
+    return tk.sym + (tk.shapeStr ? '=' + tk.shapeStr : '') + (tk.durStr ? ':' + tk.durStr : '') + (sc ? '@' + sc : '');
   }
   const DIRECTIVE_KEYS = { capo: ['capo', 'kapodaster', 'kapo'], bpm: ['bpm', 'tempo'], tonacja: ['tonacja', 'key', 'skala'], tytul: ['tytul', 'title'], akordy: ['akordy', 'zapis', 'chords'], metrum: ['metrum', 'meter', 'time', 'takt'], odliczanie: ['odliczanie', 'countin', 'count'] };
   function setDirective(text, key, value, label) {
@@ -1516,6 +1526,44 @@ akordy: chwyty     # albo: brzmiące
     'Open E': [40, 47, 52, 56, 59, 64],
   };
   // stan wyświetlania -> mapa [struna][próg] = {role, cls}
+  /* ---------- pozycje skali (1–5) ---------- */
+  function parsePositions(str) {
+    const t = String(str).trim().toLowerCase();
+    if (!t || /^(all|cal|cał|caly|cały|wszystk)/.test(t)) return 'all';
+    const set = new Set((t.match(/[1-5]/g) || []).map(Number));
+    if (!set.size || /[06-9]/.test(t.replace(/[^0-9]/g, ''))) throw new Error('Pozycje: wpisz cyfry 1–5, np. ~2,5 albo ~cały');
+    return set;
+  }
+  function posString(set) { return set && set !== 'all' && set.size ? [...set].sort().join(',') : null; }
+  // pięć kotwic: dźwięki pentatoniki (molowej lub durowej) w obrębie skali, pozycja 1 = tonik
+  function positionAnchors(mask) {
+    const iv = intervalsFromMask(mask); const has = i => !!(mask & (1 << i));
+    const cand = has(3) && !has(4) ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
+    const out = [];
+    for (const c of cand) {
+      let best = null; for (const i of iv) if (!out.includes(i) && (best == null || Math.abs(i - c) < Math.abs(best - c))) best = i;
+      if (best != null && !out.includes(best)) out.push(best);
+    }
+    for (const i of iv) if (out.length < 5 && !out.includes(i)) out.push(i);
+    return out.sort((a, b) => a - b).slice(0, 5);
+  }
+  // okna progów [od, do] dla wybranych pozycji; kotwica na najniższej strunie, okno od kotwica−1 do kotwica+3, także oktawę wyżej/niżej
+  function positionWindows(mask, root, tuning, posSet, maxFret) {
+    if (!posSet || posSet === 'all' || !posSet.size || mask == null) return null;
+    const anchors = positionAnchors(mask); const low = tuning[0]; const out = [];
+    anchors.forEach((a, k) => {
+      if (!posSet.has(k + 1)) return;
+      const base = ((root + a - low) % 12 + 12) % 12;
+      for (const f of [base - 12, base, base + 12, base + 24]) {
+        const lo = f - 1, hi = f + 3;
+        const L = Math.max(0, lo), Hh = Math.min(maxFret, hi);
+        if (Hh - L >= 2) out.push([L, Hh, k + 1]); // pomijamy szczątkowe fragmenty przy krawędziach gryfu
+      }
+    });
+    return out;
+  }
+  const inWindows = (w, f) => !w || w.some(([lo, hi]) => f >= lo && f <= hi);
+
   function fretState(opts) {
     // opts: {tuning, frets, root, scaleMask (rel. do scaleRoot), scaleRoot, chord, fretMin, fretMax, show:'both'|'scale'|'chord'}
     const out = [];
@@ -1526,8 +1574,19 @@ akordy: chwyty     # albo: brzmiące
         const pc = (opts.tuning[s] + f) % 12;
         let cell = null;
         const capo = opts.capo || 0;
-        const inRange = f >= capo && (f >= (opts.fretMin || 0) || f === capo) && f <= (opts.fretMax ?? 99);
-        if (inRange) {
+        const inRange = f >= capo && (f >= (opts.fretMin || 0) || f === capo) && f <= (opts.fretMax ?? 99) && inWindows(opts.windows, f);
+        if (inRange && (show === 'neg' || show === 'negChord')) {
+          // negatyw: tylko dźwięki SPOZA skali (opcjonalnie dźwięki akordu jako punkty odniesienia)
+          const ch = opts.chord;
+          if (show === 'negChord' && ch && !ch.nc) {
+            const rel = ((pc - ch.root) % 12 + 12) % 12;
+            if (ch.tones.has(rel)) cell = { pc, role: ch.tones.get(rel), cls: 'chordNeg' };
+          }
+          if (!cell && opts.scaleMask != null) {
+            const rel = ((pc - opts.scaleRoot) % 12 + 12) % 12;
+            if (!(opts.scaleMask & (1 << rel))) cell = { pc, role: INTERVAL_NAMES[rel], cls: 'out' };
+          }
+        } else if (inRange) {
           const ch = opts.chord;
           if (ch && !ch.nc && show !== 'scale') {
             const rel = ((pc - ch.root) % 12 + 12) % 12;
@@ -1703,6 +1762,7 @@ akordy: chwyty     # albo: brzmiące
   }
 
   G.VF = {
+    parsePositions, posString, positionAnchors, positionWindows,
     applyTiming, lineTokens, rewriteTokens, composeToken, setDirective,
     transposeChord, parseShape, shapeText, chordVoicings, assignVoicings, voicingState,
     addScale, ALIAS, SHARP, FLAT, INTERVAL_NAMES, parseNote, noteName, maskFromIntervals, intervalsFromMask, rotateMask, bitCount, norm,
@@ -1720,12 +1780,14 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '1.7';
+  const VERSION = '1.8';
+  const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
   const store = {
-    get(k, d) { try { const v = localStorage.getItem('gnz.' + k); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
-    set(k, v) { try { localStorage.setItem('gnz.' + k, JSON.stringify(v)); } catch (e) { /* brak pamięci */ } }
+    key(k) { return (NEG && k === 'settings' ? 'gneg.' : 'gnz.') + k; },
+    get(k, d) { try { const v = localStorage.getItem(this.key(k)); return v == null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set(k, v) { try { localStorage.setItem(this.key(k), JSON.stringify(v)); } catch (e) { /* brak pamięci */ } }
   };
   let toastT;
   function toast(msg) { const t = $('#toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => t.hidden = true, 2600); }
@@ -1742,13 +1804,14 @@ akordy: chwyty     # albo: brzmiące
   /* ---------- ustawienia ---------- */
   const DEF = {
     frets: 14, tuning: 'Standard E', lefty: false, highTop: true, brightness: 60, leadMs: 40, ledEnable: true,
-    colors: { root: '#ff2a1f', third: '#ffb800', fifth: '#1f8fff', seventh: '#a24bff', tension: '#00e0b8', bass: '#ff5cc8', scale: '#cfd8ff', preview: '#ffffff' },
+    colors: { root: '#ff2a1f', third: '#ffb800', fifth: '#1f8fff', seventh: '#a24bff', tension: '#00e0b8', bass: '#ff5cc8', scale: '#cfd8ff', preview: '#ffffff', out: '#ff0000', chordNeg: '#e8f0ff' },
     scaleDim: 22, show: 'both', capo: 0, capoMode: 'shapes', labels: 'note', fretMin: 0, fretMax: 15, preview: 2,
     click: false, sub: false, countIn: true, tapStart: false, clickT: true, subT: false, countInT: true,
     volClick: 70, volSynth: 60, volFile: 90, source: 'click', follow: { sens: 5, mode: 'both', latency: 30 },
     extraUuids: '', lastSong: null,
     enc: { mode: 'frame', color: 'RGB', frame: '{rgb}', led: '{i} {r} {g} {b}', after: '', order: 'string', str: 'low', serp: false, revF: false, resp: false, chunk: 20, gap: 6, ready: false, service: null, char: null }
   };
+  if (NEG) DEF.show = 'neg';
   const S = Object.assign({}, DEF, store.get('settings', {}));
   S.colors = Object.assign({}, DEF.colors, S.colors || {});
   S.enc = Object.assign({}, DEF.enc, S.enc || {});
@@ -1945,7 +2008,7 @@ odliczanie: 1
         c.txt.setAttribute('font-size', '12.5');
         if (cell) {
           const col = ROLE_COLOR(cell.cls);
-          const isScale = cell.cls === 'scale';
+          const isScale = cell.cls === 'scale' || cell.cls === 'chordNeg';
           c.dot.setAttribute('fill', col);
           c.dot.setAttribute('opacity', isScale ? '.38' : '1');
           c.dot.style.display = '';
@@ -2641,7 +2704,7 @@ odliczanie: 1
       if (cell && cell.cls === 'mute') continue;
       let rgb = null, k = br;
       if (previewSet && previewSet.has(s * 100 + f)) { rgb = hexToRgb(S.colors.preview); k = br * 0.8; }
-      else if (cell) { rgb = hexToRgb(ROLE_COLOR(cell.cls)); if (cell.cls === 'scale') k = br * S.scaleDim / 100; }
+      else if (cell) { rgb = hexToRgb(ROLE_COLOR(cell.cls)); if (cell.cls === 'scale' || cell.cls === 'chordNeg') k = br * S.scaleDim / 100; }
       if (rgb) leds[ledIndex(s, f)] = rgb.map(v => Math.round(v * k));
     }
     return leds;
@@ -2717,11 +2780,20 @@ odliczanie: 1
       const withScale = S.show === 'gripScale' && ev.scaleObj;
       return V.voicingState(v, ch, tuningArr(), S.frets, P.capo || 0, withScale ? ev.scaleObj.mask : null, sRoot);
     }
+    if (NEG && (S.show === 'neg' || S.show === 'negChord')) {
+      const mask = ev.chordOnly || !ev.scaleObj ? ch.mask : ev.scaleObj.mask, root = ev.chordOnly || !ev.scaleObj ? ch.root : sRoot;
+      return V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: S.show, capo: P.capo || 0, scaleMask: mask, scaleRoot: root, fretMin: S.fretMin, fretMax: S.fretMax });
+    }
     return V.fretState({
       tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : S.show, capo: P.capo || 0,
-      scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: S.fretMin, fretMax: S.fretMax
+      scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: S.fretMin, fretMax: S.fretMax, windows: evWindows(ev, ch, sRoot)
     });
   }
+  function evWindows(ev, ch, sRoot) {
+    if (!ev.posSet) return null;
+    return ev.scaleObj && !ev.chordOnly ? V.positionWindows(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionWindows(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets);
+  }
+  const posLabel = ev => ev && ev.posSet ? ' · poz. ' + [...ev.posSet].sort().join('+') : '';
   function previewSetFor(nx, nj) {
     const set = new Set(); if (!nx || !nx.chord || nx.chord.nc) return set;
     if (isGrip()) { const v = P.voices && P.voices[nj]; if (v && v.frets) v.frets.forEach((f, s) => { if (f >= 0) set.add(s * 100 + f); }); return set; }
@@ -2781,7 +2853,7 @@ odliczanie: 1
         $('#gripInfo').hidden = !isGrip();
         if (ev.chord.nc) $('#nowScale').innerHTML = '<span>bez akordu</span>';
         else if (ev.chordOnly) $('#nowScale').innerHTML = 'Tylko dźwięki akordu';
-        else if (ev.scaleObj) $('#nowScale').innerHTML = esc(prettyAcc(V.noteName(ev.scaleRootPc, flatFor(ev))) + ' ' + ev.scaleObj.pl) + ' <span class="mono">· ' + esc(prettyAcc(V.formula(ev.scaleObj.mask))) + (ev.auto ? ' · auto' : '') + '</span>';
+        else if (ev.scaleObj) $('#nowScale').innerHTML = esc(prettyAcc(V.noteName(ev.scaleRootPc, flatFor(ev))) + ' ' + ev.scaleObj.pl) + ' <span class="mono">· ' + esc(prettyAcc(V.formula(ev.scaleObj.mask))) + (ev.auto ? ' · auto' : '') + esc(posLabel(ev)) + '</span>';
         else $('#nowScale').textContent = '';
         $('#nextChord').innerHTML = d.nx ? prettyChord(d.nx.chord.symbol) : '■';
         const shiftLab = P.capoMode === 'shapes' ? cap : 0;
@@ -3016,6 +3088,11 @@ odliczanie: 1
     renderLegend();
   }
   function renderLegend() {
+    if (NEG) {
+      const it = [['out', 'dźwięki SPOZA skali – omijaj'], ['chordNeg', 'dźwięki akordu (w trybie „Negatyw + akord”)'], ['preview', 'zapowiedź następnego akordu']];
+      $('#legend').innerHTML = it.map(([k, l]) => `<span><i style="background:${S.colors[k]};${k === 'chordNeg' ? 'opacity:.5;' : ''}${k === 'preview' ? 'background:none;border:2px dashed ' + S.colors[k] + ';' : ''}"></i>${l}</span>`).join('');
+      return;
+    }
     const items = [['root', 'pryma'], ['third', 'tercja'], ['fifth', 'kwinta'], ['seventh', 'septyma / seksta'], ['tension', 'napięcia'], ['bass', 'bas'], ['scale', 'pozostałe dźwięki skali'], ['preview', 'zapowiedź następnego akordu']];
     $('#legend').innerHTML = items.map(([k, l]) => `<span><i style="background:${S.colors[k]};${k === 'scale' ? 'opacity:.5;' : ''}${k === 'preview' ? 'background:none;border:2px dashed ' + S.colors[k] + ';' : ''}"></i>${l}</span>`).join('');
   }
@@ -3043,7 +3120,9 @@ odliczanie: 1
     $('#scTags').innerHTML = [s.size + ' dźwięków', s.family, 'nr ' + SC.mask].map(t => `<span class="tag">${esc(t)}</span>`).join('');
     $('#scIvs').innerHTML = V.INTERVAL_NAMES.map((n, i) => `<button data-iv="${i}" aria-pressed="${!!(SC.mask & (1 << i))}" class="${i === 0 ? 'root' : ''}">${esc(prettyAcc(n))}<br><span style="font-weight:400;opacity:.8">${esc(prettyAcc(V.noteName(SC.root + i, flat)))}</span></button>`).join('');
     const ch = SC.chordShown;
-    const state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: SC.mask, scaleRoot: SC.root, show: ch ? 'both' : 'scale', fretMin: 0, fretMax: 99, capo: P.capo || 0 });
+    const win = SC.pos && SC.pos.size ? V.positionWindows(SC.mask, SC.root, tuningArr(), SC.pos, S.frets) : null;
+    const state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: SC.mask, scaleRoot: SC.root, show: NEG ? (ch ? 'negChord' : 'neg') : (ch ? 'both' : 'scale'), fretMin: 0, fretMax: 99, capo: P.capo || 0, windows: win });
+    $$('#scPos [data-pos]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.pos === 'all' ? !(SC.pos && SC.pos.size) : !!(SC.pos && SC.pos.has(+b.dataset.pos)))));
     fbScale.update(state, null, flat);
     SC.state = state;
     // stopnie
@@ -3099,6 +3178,8 @@ odliczanie: 1
     fbChord.update(SC.exState, null, spellFlat(ch.root, ch.mask, ch.flat));
   }
   function bindScales() {
+    SC.pos = new Set();
+    $('#scPos').onclick = e => { const b = e.target.closest('[data-pos]'); if (!b) return; if (b.dataset.pos === 'all') SC.pos.clear(); else { const n = +b.dataset.pos; SC.pos.has(n) ? SC.pos.delete(n) : SC.pos.add(n); } renderScaleDetail(); };
     $('#chvPrev').onclick = () => { SC.vIdx--; renderExVoicing(); };
     $('#chvNext').onclick = () => { SC.vIdx++; renderExVoicing(); };
     $('#chvShow').onclick = () => {
@@ -3127,7 +3208,7 @@ odliczanie: 1
       lastLedKey = '';
       toast(B.server && S.enc.ready ? 'Wysłano na gryf' : 'Pokażę na diodach po połączeniu i ustawieniu sterownika');
     };
-    $('#scCopy').onclick = () => copyText(scaleToken());
+    $('#scCopy').onclick = () => copyText(scaleToken() + (SC.pos && SC.pos.size ? '~' + [...SC.pos].sort().join(',') : ''));
     $('#scSave').onclick = () => {
       const name = $('#scCustomName').value.trim(); if (!name) { toast('Wpisz nazwę skali'); return; }
       customScales.push({ name, mask: SC.mask }); store.set('customScales', customScales);
@@ -3294,7 +3375,7 @@ odliczanie: 1
     $('#lefty').checked = S.lefty; $('#lefty').onchange = e => { S.lefty = e.target.checked; save(); refreshBoards(); };
     $('#highTop').checked = S.highTop; $('#highTop').onchange = e => { S.highTop = e.target.checked; save(); refreshBoards(); };
     // kolory
-    const names = { root: 'Pryma (tonika akordu)', third: 'Tercja', fifth: 'Kwinta', seventh: 'Septyma / seksta', tension: 'Napięcia (9, 11, 13)', bass: 'Bas w akordzie z ukośnikiem', scale: 'Pozostałe dźwięki skali', preview: 'Zapowiedź następnego akordu' };
+    const names = NEG ? { out: 'Dźwięki spoza skali', chordNeg: 'Dźwięki akordu (tryb z akordem)', preview: 'Zapowiedź następnego akordu', root: 'Pryma (tryb Chwyt)', third: 'Tercja (tryb Chwyt)', fifth: 'Kwinta (tryb Chwyt)', seventh: 'Septyma (tryb Chwyt)', tension: 'Napięcia (tryb Chwyt)', bass: 'Bas (tryb Chwyt)' } : { root: 'Pryma (tonika akordu)', third: 'Tercja', fifth: 'Kwinta', seventh: 'Septyma / seksta', tension: 'Napięcia (9, 11, 13)', bass: 'Bas w akordzie z ukośnikiem', scale: 'Pozostałe dźwięki skali', preview: 'Zapowiedź następnego akordu' };
     $('#colorEdit').innerHTML = Object.keys(names).map(k => `<label class="row" style="justify-content:space-between"><span class="small">${names[k]}</span><input type="color" data-color="${k}" value="${S.colors[k]}" style="width:54px;height:34px;border:1px solid var(--line);border-radius:6px;background:none;padding:2px"></label>`).join('')
       + `<label class="f">Jasność dźwięków skali względem akordu <span class="mono" id="sdVal">${S.scaleDim}%</span><input type="range" id="scaleDim" min="5" max="100" value="${S.scaleDim}"></label>`;
     $('#colorEdit').oninput = e => {
@@ -3393,9 +3474,9 @@ odliczanie: 1
       const w = Math.round(Math.max(96, Math.min(360, b.lenQ * 32)));
       const evs = b.events.map(e => {
         const i = idx.get(e);
-        const own = e.tk && e.tk.scaleSpec;
+        const own = e.tk && (e.tk.scaleSpec || e.tk.posStr);
         const cls = [e.tied ? 'tied' : '', own ? 'own' : '', i === ST.sel ? 'sel' : ''].filter(Boolean).join(' ');
-        const k = e.chord.nc ? '' : e.chordOnly ? 'tylko akord' : e.scaleObj ? shortScale(e) : '';
+        const k = (e.chord.nc ? '' : e.chordOnly ? 'tylko akord' : e.scaleObj ? shortScale(e) : '') + (e.posSet ? ' · p' + [...e.posSet].sort().join('+') : '');
         return `<button data-ei="${i}" class="${cls}" style="flex-grow:${e.durQ}" title="${esc(e.chord.symbol + (k ? ' · ' + k : '') + ' · ' + fmtDur(e.durQ))}"><span class="c">${e.tied ? '–' : esc(prettyAcc(e.chord.symbol))}</span><span class="k">${esc(k)}</span></button>`;
       }).join('');
       return `<div class="sbar" style="width:${w}px" data-bar="${b.index}"><div class="hd"><span>${b.index + 1}${showM ? ' · ' + m : ''}${showT ? ' · ♩' + Math.round(bpm * 10) / 10 : ''}</span>${b.section ? `<span class="sec">${esc(b.section)}</span>` : ''}${b.index < sg.mapped ? '<span class="mp" title="Takt zmapowany z nagrania">●</span>' : ''}</div><div class="ev">${evs || '<button disabled><span class="c">·</span></button>'}</div></div>`;
@@ -3456,6 +3537,8 @@ odliczanie: 1
         <button data-sm="key" aria-pressed="${curMode === 'key'}"${ST.song.key ? '' : ' disabled title="Ustaw tonację utworu"'}>Tonacja</button>
         <button data-sm="chord" aria-pressed="${curMode === 'chord'}">Tylko akord</button>
       </div>
+      <div class="row"><span class="small muted">Pozycje:</span><div class="seg" role="group" aria-label="Pozycje skali" id="inPos">${[1, 2, 3, 4, 5].map(n => `<button data-ipos="${n}" aria-pressed="${!!(ev.posSet && ev.posSet.has(n))}">${n}</button>`).join('')}<button data-ipos="all" aria-pressed="${!ev.posSet}">Cały gryf</button></div></div>
+      ${ST.song.positions && ST.song.positions !== 'all' && !tk.posStr ? '<p class="small muted">Domyślne pozycje utworu: ' + [...ST.song.positions].sort().join('+') + '</p>' : ''}
       <div class="row">
         <label class="f" style="width:96px">Tonik <select id="inRoot">${V.SHARP.map((n, i) => `<option value="${i}"${i === ST.scaleRoot ? ' selected' : ''}>${esc(prettyAcc(V.FLAT_ROOTS.has(i) && i !== 6 ? V.FLAT[i] : n))}</option>`).join('')}</select></label>
         <label class="f grow">Szukaj skali <input type="search" id="inScaleQ" value="${esc(ST.scaleQ)}" placeholder="np. dorycka, altered, 145"></label>
@@ -3465,7 +3548,7 @@ odliczanie: 1
     <div class="stack" style="gap:10px">
       <h3>Podgląd i chwyt</h3>
       <div class="seg" role="group" aria-label="Podgląd">
-        <button data-pv="scale" aria-pressed="${ST.view === 'scale'}">Skala + akord</button>
+        <button data-pv="scale" aria-pressed="${ST.view === 'scale'}">${NEG ? 'Negatyw + akord' : 'Skala + akord'}</button>
         <button data-pv="grip" aria-pressed="${ST.view === 'grip'}">Chwyt</button>
       </div>
       <div class="fb-wrap" id="stFb"></div>
@@ -3534,7 +3617,8 @@ odliczanie: 1
     $('#inVTxt').textContent = txt;
     const sRoot = ev.scaleRootPc == null ? null : (ev.scaleRootPc + shift) % 12;
     if (ST.view === 'grip') state = V.voicingState(v, ch, tuningArr(), S.frets, capo, null, 0);
-    else state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : 'both', capo, scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: 0, fretMax: 99 });
+    else if (NEG) state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: 'negChord', capo, scaleMask: ev.chordOnly || !ev.scaleObj ? ch.mask : ev.scaleObj.mask, scaleRoot: ev.chordOnly || !ev.scaleObj ? ch.root : sRoot, fretMin: 0, fretMax: 99 });
+    else state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : 'both', capo, scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: 0, fretMax: 99, windows: ev.posSet ? (ev.scaleObj && !ev.chordOnly ? V.positionWindows(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionWindows(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets)) : null });
     fbStudio.fb.cfg = '';
     const fl = spellFlat(ev.chord.root, ev.scaleObj ? ev.scaleObj.mask : ev.chord.mask, ev.chord.flat);
     fbStudio.fb.update(state, null, fl, shift);
@@ -3569,6 +3653,13 @@ odliczanie: 1
       const m = b.dataset.sm;
       tokenEdit(ev, { ...tk, scaleSpec: m === 'auto' ? null : m === 'key' ? 'tonacja' : 'akord' }, false);
     });
+    $('#inPos').onclick = e => {
+      const b = e.target.closest('[data-ipos]'); if (!b) return;
+      let set = new Set(ev.posSet ? [...ev.posSet] : []);
+      if (b.dataset.ipos === 'all') set = new Set(); else { const n = +b.dataset.ipos; set.has(n) ? set.delete(n) : set.add(n); }
+      const posStr = set.size ? [...set].sort().join(',') : (ST.song.positions && ST.song.positions !== 'all' ? 'cały' : null);
+      tokenEdit(ev, { ...tk, posStr }, false);
+    };
     $('#inRoot').onchange = e => { ST.scaleRoot = +e.target.value; renderScaleChoices(ev); };
     $('#inScaleQ').oninput = e => { ST.scaleQ = e.target.value; renderScaleChoices(ev); };
     $('#inScales').onclick = e => {
@@ -3913,7 +4004,16 @@ odliczanie: 1
 
 
   /* ================= START ================= */
+  function applyEdition() {
+    if (!NEG) return;
+    document.title = 'Gryf negatyw';
+    const br = document.querySelector('.brand'); if (br) br.innerHTML = 'Gryf negatyw<small>na czerwono tylko dźwięki spoza skali · wersja ' + VERSION + '</small>';
+    const seg = document.querySelector('[data-show]').parentElement;
+    seg.innerHTML = '<button data-show="neg" aria-pressed="true">Negatyw skali</button><button data-show="negChord" aria-pressed="false">Negatyw + akord</button><button data-show="grip" aria-pressed="false">Chwyt</button>';
+    if (!['neg', 'negChord', 'grip'].includes(S.show)) S.show = 'neg';
+  }
   function init() {
+    applyEdition();
     if (!songs.length) songs = EXAMPLES.map((t, i) => ({ id: 'ex' + (i + 1), text: t, example: true }));
     bindPlay(); bindScales(); bindSongs(); bindDevice(); bindStudio();
     loadSong(S.lastSong && songs.find(s => s.id === S.lastSong) ? S.lastSong : songs[0].id);
