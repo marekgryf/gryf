@@ -266,7 +266,7 @@ main.wide { max-width: 1680px; }
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 1.4</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -1717,7 +1717,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '1.0';
+  const VERSION = '1.4';
 
   /* ---------- pamięć ---------- */
   const store = {
@@ -2364,6 +2364,10 @@ odliczanie: 1
   const VN_SERVICE = '18424398-7cbc-11e9-8f9e-2a86e4085a59';
   const VN_CHAR = '2d86686a-53dc-25b3-0c4a-f0e10c8dee20';
   SERVICES.unshift(VN_SERVICE);
+  // kanały aktualizacji oprogramowania (Dialog SUOTA) – zablokowane niezależnie od usługi
+  const NO_WRITE_CHARS = ['8082caa8-41a6-4021-91c6-56f9b954cc34', '724249f0-5ec3-4b5f-8804-42345af08651', '6c53db25-47a1-45fe-a022-7c92fb334fd4', '9d84b9a3-000c-49d8-9183-855b673fda31', '457871e8-d516-4ca1-9116-57d0b17b9cb2', '5f78df94-798c-46f5-990a-b3eb6a065c88', '64b4e8b5-0de5-401b-a21d-acc8db3b913a', '42c3dfdd-77be-4d9c-8454-8f875267fb3b', 'b7de1eea-823d-43bb-a3af-c4903dfce23c'];
+  const normUuid = u => { u = String(u).toLowerCase(); return /^[0-9a-f]{4}$/.test(u) ? '0000' + u + '-0000-1000-8000-00805f9b34fb' : u; };
+  const writeAllowed = item => !!item && !NO_WRITE.includes(item.svc) && !NO_WRITE_CHARS.includes(item.uuid);
   const hex = buf => [...new Uint8Array(buf.buffer ? buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) : buf)].map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
   const ascii = buf => { const u = new Uint8Array(buf.buffer ? buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength) : buf); return [...u].every(b => b >= 32 && b < 127) && u.length ? String.fromCharCode(...u) : ''; };
   const B = {
@@ -2414,12 +2418,12 @@ odliczanie: 1
       let svcs = [];
       try { svcs = await this.server.getPrimaryServices(); } catch (e) { this.L('er', 'Nie widzę usług: ' + e.message + '. Dodaj UUID usług z nRF Connect w polu poniżej i połącz ponownie.'); }
       for (const s of svcs) {
-        const node = { uuid: s.uuid, chars: [] };
+        const node = { uuid: normUuid(s.uuid), chars: [] };
         let cs = []; try { cs = await s.getCharacteristics(); } catch (e) { this.L('er', 'Kanały ' + s.uuid + ': ' + e.message); }
         for (const c of cs) {
           const p = c.properties; const props = ['read', 'write', 'writeWithoutResponse', 'notify', 'indicate'].filter(k => p[k]);
-          const item = { uuid: c.uuid, props, val: '', c, svc: s.uuid };
-          this.chars.set(s.uuid + '/' + c.uuid, item);
+          const item = { uuid: normUuid(c.uuid), props, val: '', c, svc: normUuid(s.uuid) };
+          this.chars.set(item.svc + '/' + item.uuid, item);
           if (p.read) { try { const v = await c.readValue(); item.val = hex(v) + (ascii(v) ? '  „' + ascii(v) + '”' : ''); } catch (e) { item.val = '(nie do odczytu: ' + e.message + ')'; } }
           if (p.notify || p.indicate) {
             try { await c.startNotifications(); c.addEventListener('characteristicvaluechanged', ev => this.L('rx', '← ' + c.uuid.slice(4, 8) + ': ' + hex(ev.target.value))); }
@@ -2433,9 +2437,9 @@ odliczanie: 1
       const saved = S.enc.service && this.chars.get(S.enc.service + '/' + S.enc.char);
       const vn = [...this.chars.values()].find(x => x.uuid === VN_CHAR);
       if (vn) this.target = vn;
-      else if (saved && !NO_WRITE.includes(saved.svc) && (saved.props.includes('write') || saved.props.includes('writeWithoutResponse'))) this.target = saved;
+      else if (saved && writeAllowed(saved) && (saved.props.includes('write') || saved.props.includes('writeWithoutResponse'))) this.target = saved;
       else {
-        const cand = [...this.chars.values()].filter(x => (x.props.includes('writeWithoutResponse') || x.props.includes('write')) && !NO_WRITE.includes(x.svc) && !/^0000180a/.test(x.svc));
+        const cand = [...this.chars.values()].filter(x => (x.props.includes('writeWithoutResponse') || x.props.includes('write')) && writeAllowed(x));
         cand.sort((a, b) => (b.props.includes('writeWithoutResponse') - a.props.includes('writeWithoutResponse')));
         this.target = cand[0] || null;
       }
@@ -2444,6 +2448,7 @@ odliczanie: 1
     },
     async write(bytes) {
       const t = this.target; if (!t) throw new Error('Nie wybrano kanału zapisu');
+      if (!writeAllowed(t)) { this.target = null; bleUi(); throw new Error('Zablokowano zapis do kanału ' + t.uuid + ' (aktualizacja oprogramowania nakładki)'); }
       const c = t.c; const u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
       if (!S.enc.resp && c.properties.writeWithoutResponse && c.writeValueWithoutResponse) await c.writeValueWithoutResponse(u8);
       else if (c.writeValueWithResponse) await c.writeValueWithResponse(u8);
@@ -3132,7 +3137,7 @@ odliczanie: 1
     el.innerHTML = B.tree.map(n => `<div class="svc"><div class="u">Usługa ${esc(n.uuid)}</div>${n.chars.map(c => {
       const w = c.props.includes('write') || c.props.includes('writeWithoutResponse');
       const id = n.uuid + '/' + c.uuid; const sel = B.target && B.target.c === c.c;
-      return `<div class="chr">${w && !NO_WRITE.includes(n.uuid) ? `<input type="radio" name="wchar" value="${esc(id)}"${sel ? ' checked' : ''} aria-label="Zapisuj do tego kanału">` : '<span></span>'}<div><div class="u">${esc(c.uuid)}</div><div class="props">${esc(c.props.join(' · '))}</div></div>${c.val ? `<div class="val">${esc(c.val)}</div>` : ''}</div>`;
+      return `<div class="chr">${w && writeAllowed(c) ? `<input type="radio" name="wchar" value="${esc(id)}"${sel ? ' checked' : ''} aria-label="Zapisuj do tego kanału">` : '<span></span>'}<div><div class="u">${esc(c.uuid)}</div><div class="props">${esc(c.props.join(' · '))}</div></div>${c.val ? `<div class="val">${esc(c.val)}</div>` : ''}</div>`;
     }).join('')}</div>`).join('');
   }
   function report() {
@@ -3170,7 +3175,7 @@ odliczanie: 1
     $('#bleReport').onclick = () => copyText(report());
     $('#bleTree').onchange = e => {
       if (e.target.name !== 'wchar') return;
-      const it = B.chars.get(e.target.value); if (!it) return;
+      const it = B.chars.get(e.target.value); if (!it || !writeAllowed(it)) return;
       B.target = it; S.enc.service = it.svc; S.enc.char = it.uuid; save(); bleUi(); B.L('tx', 'Kanał zapisu: ' + it.uuid);
     };
     $('#extraUuids').value = S.extraUuids; $('#extraUuids').onchange = e => { S.extraUuids = e.target.value; save(); };
