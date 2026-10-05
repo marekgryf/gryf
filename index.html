@@ -311,11 +311,21 @@ main.wide { max-width: 1680px; }
 .sugit .tg{font-size:.78rem;color:var(--text);opacity:.85}
 .cmrow{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
 
+.anbox{display:flex;flex-direction:column;gap:10px;border:1px dashed var(--line);border-radius:10px;padding:10px}
+.anprog{position:relative;height:22px;border-radius:11px;background:#0006;overflow:hidden}
+.anprog>div{position:absolute;inset:0 auto 0 0;width:0;background:linear-gradient(90deg,var(--accent),#ffd36a);transition:width .2s}
+.anprog>span{position:relative;display:block;text-align:center;line-height:22px;color:#111;font-weight:600}
+.antab{width:100%;border-collapse:collapse;font-size:.88rem}
+.antab td{padding:5px 8px;border-top:1px solid var(--line);vertical-align:top}
+.antab td:first-child{color:var(--mute);white-space:nowrap;width:1%}
+.anpre{max-height:260px;overflow:auto;font:12.5px/1.4 var(--mono);background:#0007;padding:10px;border-radius:8px;margin:0;white-space:pre}
+.sbar.unsure{outline:2px dashed var(--warn);outline-offset:-2px}
+
 </style>
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.3</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.4</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -631,6 +641,14 @@ main.wide { max-width: 1680px; }
             </div>
             <div id="stAudioConfirm"></div>
             <p class="small muted" id="stAudioInfo">Ten utwór nie ma jeszcze podkładu. Możesz grać z klikiem albo wczytać nagranie.</p>
+            <div class="anbox" id="stAnBox" hidden>
+              <div class="row">
+                <button class="btn primary" id="stAnalyze">Rozpoznaj z nagrania: tempo, takty, metrum, akordy</button>
+                <span class="small muted">bez internetu · kilka–kilkanaście sekund</span>
+              </div>
+              <div class="anprog" id="stAnProg" hidden><div></div><span class="small muted"></span></div>
+              <div id="stAnRes"></div>
+            </div>
             <div class="wave" id="stWaveWrap" hidden><canvas id="stWave" height="110"></canvas></div>
             <div class="row" id="stTransport" hidden>
               <button class="btn" id="stBack">⟲ 5 s</button>
@@ -2498,6 +2516,581 @@ akordy: chwyty     # albo: brzmiące
   G.SUGGEST = { forChord, common, targetText };
 })(typeof window !== 'undefined' ? window : globalThis);
 
+/* ===== Analiza podkładu: tempo, beat, takty, metrum, tonacja, akordy, części ===== */
+(function (G) {
+  'use strict';
+  const SR = 22050;
+
+  /* ---------- FFT (radix-2, rzeczywiste przez zespolone) ---------- */
+  const fftCache = new Map();
+  function fftPlan(n) {
+    if (fftCache.has(n)) return fftCache.get(n);
+    const rev = new Uint32Array(n); let bits = Math.log2(n) | 0;
+    for (let i = 0; i < n; i++) { let r = 0, x = i; for (let b = 0; b < bits; b++) { r = (r << 1) | (x & 1); x >>= 1; } rev[i] = r; }
+    const cos = new Float64Array(n / 2), sin = new Float64Array(n / 2);
+    for (let i = 0; i < n / 2; i++) { cos[i] = Math.cos(-2 * Math.PI * i / n); sin[i] = Math.sin(-2 * Math.PI * i / n); }
+    const win = new Float64Array(n); for (let i = 0; i < n; i++) win[i] = 0.5 - 0.5 * Math.cos(2 * Math.PI * i / n);
+    const p = { n, rev, cos, sin, win, re: new Float64Array(n), im: new Float64Array(n) };
+    fftCache.set(n, p); return p;
+  }
+  // moduł widma ramki zaczynającej się w x[off]
+  function magFrame(x, off, p, out) {
+    const { n, rev, cos, sin, win, re, im } = p;
+    for (let i = 0; i < n; i++) { const j = off + i; const v = j >= 0 && j < x.length ? x[j] * win[i] : 0; re[rev[i]] = v; im[rev[i]] = 0; }
+    for (let size = 2; size <= n; size <<= 1) {
+      const half = size >> 1, step = n / size;
+      for (let i = 0; i < n; i += size) for (let j = 0, k = 0; j < half; j++, k += step) {
+        const a = i + j, b = a + half;
+        const tr = re[b] * cos[k] - im[b] * sin[k], ti = re[b] * sin[k] + im[b] * cos[k];
+        re[b] = re[a] - tr; im[b] = im[a] - ti; re[a] += tr; im[a] += ti;
+      }
+    }
+    for (let i = 0; i <= n / 2; i++) out[i] = Math.hypot(re[i], im[i]);
+    return out;
+  }
+  const tick = () => new Promise(r => setTimeout(r, 0));
+
+  /* ---------- 1. obwiednia uderzeń (onset) ---------- */
+  async function onsetEnvelope(x, progress) {
+    const N = 1024, H = 256, p = fftPlan(N), nb = N / 2 + 1;
+    const frames = Math.max(1, Math.floor((x.length - N) / H) + 1);
+    const env = new Float32Array(frames), low = new Float32Array(frames), rms = new Float32Array(frames);
+    let prev = new Float32Array(nb), cur = new Float32Array(nb); const mag = new Float64Array(nb);
+    const lowBin = Math.round(160 * N / SR);
+    for (let f = 0; f < frames; f++) {
+      magFrame(x, f * H, p, mag);
+      let s = 0, sl = 0, e = 0;
+      for (let k = 1; k < nb; k++) {
+        const v = Math.log1p(100 * mag[k]); cur[k] = v;
+        const d = v - prev[k]; if (d > 0) { s += d; if (k <= lowBin) sl += d; }
+        e += mag[k] * mag[k];
+      }
+      env[f] = s; low[f] = sl; rms[f] = Math.sqrt(e / nb);
+      const t = prev; prev = cur; cur = t;
+      if ((f & 1023) === 0) { if (progress) progress(0.25 * f / frames); await tick(); }
+    }
+    // usuń trend (średnia ruchoma 0,5 s), przytnij do zera, normalizuj
+    const fps = SR / H;
+    const norm = a => {
+      const w = Math.round(fps * 0.25), out = new Float32Array(a.length); let acc = 0, cnt = 0;
+      const pre = new Float64Array(a.length + 1); for (let i = 0; i < a.length; i++) pre[i + 1] = pre[i] + a[i];
+      for (let i = 0; i < a.length; i++) { const lo = Math.max(0, i - w), hi = Math.min(a.length, i + w + 1); const m = (pre[hi] - pre[lo]) / (hi - lo); out[i] = Math.max(0, a[i] - m); acc += out[i] * out[i]; cnt++; }
+      const sd = Math.sqrt(acc / Math.max(1, cnt)) || 1; for (let i = 0; i < out.length; i++) out[i] /= sd;
+      return out;
+    };
+    return { env: norm(env), low: norm(low), rms, fps, hop: H };
+  }
+
+  /* ---------- 2. tempo lokalne (tempogram autokorelacyjny + Viterbi) ---------- */
+  function tempoCurve(env, fps) {
+    const minB = 50, maxB = 210;
+    const lags = []; for (let bpm = maxB; bpm >= minB; bpm *= 0.985) lags.push({ bpm, lag: 60 * fps / bpm });
+    const win = Math.round(fps * 8), hop = Math.round(fps * 1);
+    const nW = Math.max(1, Math.floor((env.length - win) / hop) + 1);
+    const prior = l => Math.exp(-0.5 * Math.pow(Math.log2(l.bpm / 105) / 0.85, 2));
+    const S = [];
+    const ac = (a, s, e, lag) => { const L = Math.floor(lag), fr = lag - L; let v = 0; for (let i = s; i + L + 1 < e; i++) v += a[i] * (a[i + L] * (1 - fr) + a[i + L + 1] * fr); return v; };
+    for (let w = 0; w < nW; w++) {
+      const s = w * hop, e = Math.min(env.length, s + win);
+      const row = lags.map(l => {
+        // wzmocnienie harmoniczne: puls + podwójny okres (takt) + połowa (ósemki)
+        const a1 = ac(env, s, e, l.lag), a2 = ac(env, s, e, l.lag * 2), a4 = l.lag / 2 >= 2 ? ac(env, s, e, l.lag / 2) : 0;
+        return (a1 + 0.5 * a2 + 0.25 * a4) * prior(l);
+      });
+      const mx = Math.max(...row) || 1; S.push(row.map(v => Math.log(1e-6 + v / mx)));
+    }
+    // Viterbi po oknach: nagłe skoki tempa kosztują
+    const K = lags.length, dp = new Float64Array(K), bp = [];
+    for (let k = 0; k < K; k++) dp[k] = S[0][k];
+    for (let w = 1; w < nW; w++) {
+      const nd = new Float64Array(K), b = new Int16Array(K);
+      for (let k = 0; k < K; k++) {
+        let best = -1e18, bi = k;
+        for (let j = Math.max(0, k - 12); j <= Math.min(K - 1, k + 12); j++) { const c = dp[j] - 0.35 * Math.abs(j - k); if (c > best) { best = c; bi = j; } }
+        nd[k] = best + S[w][k]; b[k] = bi;
+      }
+      bp.push(b); dp.set(nd);
+    }
+    let k = 0; for (let j = 1; j < K; j++) if (dp[j] > dp[k]) k = j;
+    const path = new Array(nW); path[nW - 1] = k;
+    for (let w = nW - 1; w > 0; w--) { k = bp[w - 1][k]; path[w - 1] = k; }
+    const bpmW = path.map(i => lags[i].bpm);
+    // tempo w każdej ramce (interpolacja środków okien)
+    const per = new Float32Array(env.length);
+    for (let i = 0; i < env.length; i++) {
+      const wpos = (i - win / 2) / hop; const a = Math.max(0, Math.min(nW - 1, Math.floor(wpos))), b2 = Math.min(nW - 1, a + 1), fr = Math.max(0, Math.min(1, wpos - a));
+      const bpm = bpmW[a] * (1 - fr) + bpmW[b2] * fr; per[i] = 60 * fps / bpm;
+    }
+    return { per, bpmW };
+  }
+
+  /* ---------- 3. śledzenie beatu (programowanie dynamiczne, Ellis) ---------- */
+  function trackBeats(env, per, fps) {
+    const n = env.length, C = new Float64Array(n), B = new Int32Array(n).fill(-1);
+    const alpha = 400;
+    for (let t = 0; t < n; t++) {
+      const P = per[t]; let best = 0, bi = -1;
+      const lo = Math.max(0, Math.round(t - 2 * P)), hi = Math.round(t - P / 2);
+      for (let s = lo; s <= hi; s++) { const r = Math.log((t - s) / P); const v = C[s] - alpha * r * r; if (v > best || bi < 0) { best = v; bi = s; } }
+      C[t] = env[t] + (bi >= 0 ? Math.max(0, best) : 0); B[t] = bi >= 0 && best > 0 ? bi : -1;
+    }
+    // koniec: najlepszy w ostatnim okresie
+    let t = n - 1, bestV = -1e18; for (let i = Math.max(0, n - Math.round(per[n - 1])); i < n; i++) if (C[i] > bestV) { bestV = C[i]; t = i; }
+    const beats = []; while (t >= 0) { beats.push(t); t = B[t]; }
+    beats.reverse();
+    // dociągnięcie do najbliższego szczytu obwiedni (±35 ms) – mniejszy dryf w długich utworach
+    const r = Math.round(0.035 * fps);
+    const fine = beats.map(f => { let bi = f, bv = env[f] * 1.15; for (let j = f - r; j <= f + r; j++) if (j >= 0 && j < n && env[j] > bv) { bv = env[j]; bi = j; } return bi; });
+    return fine.map(f => f / fps + 512 / SR);
+  }
+
+  /* ---------- 4. chroma (salientność wysokości z sumowaniem harmonicznych) ---------- */
+  async function chromaFrames(x, progress) {
+    const N = 8192, H = 1024, p = fftPlan(N), nb = N / 2 + 1;
+    const frames = Math.max(1, Math.floor((x.length - N) / H) + 1);
+    const binOf = f => f * N / SR;
+    const pmin = 28, pmax = 96;
+    const P = []; for (let m = pmin; m <= pmax; m++) P.push({ m, f: 440 * Math.pow(2, (m - 69) / 12) });
+    const tre = new Float32Array(frames * 12), bas = new Float32Array(frames * 12), en = new Float32Array(frames);
+    const mag = new Float64Array(nb), lm = new Float64Array(nb);
+    const sal = new Float64Array(P.length);
+    const interp = b => { const i = Math.floor(b), fr = b - i; if (i + 1 >= nb) return 0; return lm[i] * (1 - fr) + lm[i + 1] * fr; };
+    for (let f = 0; f < frames; f++) {
+      // ramka wyśrodkowana: f*H - N/2
+      magFrame(x, f * H - N / 2 + H / 2, p, mag);
+      let e = 0;
+      for (let k = 0; k < nb; k++) { lm[k] = Math.log1p(1000 * mag[k]); e += mag[k] * mag[k]; }
+      en[f] = Math.sqrt(e);
+      // salientność: energia podstawowej + harmoniczne (każda przycięta do poziomu podstawowej,
+      // żeby pod-harmoniczne – kwinta/oktawa niżej – nie zbierały energii cudzych dźwięków)
+      for (let i = 0; i < P.length; i++) {
+        const f0 = P[i].f; let s = 0, h1 = 0;
+        const H5 = P[i].m < 52 ? 3 : 5;
+        for (let h = 1; h <= H5; h++) {
+          const fc = f0 * h; if (fc > 5000) break;
+          const b0 = binOf(fc * 0.985), b1 = binOf(fc * 1.015);
+          let mx = 0; for (let b = Math.max(1, Math.floor(b0)); b <= Math.ceil(b1) && b < nb; b++) if (lm[b] > mx) mx = lm[b];
+          if (b1 - b0 < 1) mx = Math.max(mx, interp(binOf(fc)));
+          if (h === 1) { h1 = mx; s = mx; } else s += Math.pow(0.8, h - 1) * Math.min(mx, h1);
+        }
+        sal[i] = s; P[i].h1 = h1;
+      }
+      let mean = 0, m1 = 0; for (let i = 0; i < P.length; i++) { mean += sal[i]; m1 += P[i].h1; } mean /= P.length; m1 /= P.length;
+      for (let i = 0; i < P.length; i++) {
+        const m = P[i].m, pc = m % 12;
+        const v = sal[i] - mean;
+        if (v > 0 && m >= 45 && m <= 88) tre[f * 12 + pc] += v * (m < 52 ? 0.6 : 1);
+        // bas: sama podstawowa, wyraźnie ponad średnią i silniejsza niż sąsiedzi
+        const b = P[i].h1 - m1 * 1.3;
+        if (m <= 55 && b > 0 && (i === 0 || P[i].h1 >= P[i - 1].h1) && (i + 1 >= P.length || P[i].h1 >= P[i + 1].h1)) bas[f * 12 + pc] += b * (m < 43 ? 1 : 0.8);
+      }
+      if ((f & 127) === 0) { if (progress) progress(0.25 + 0.5 * f / frames); await tick(); }
+    }
+    return { tre, bas, en, frames, fps: SR / H, hop: H, off: 0 };
+  }
+
+  /* ---------- pomocnicze ---------- */
+  const NOTE = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'];
+  const NOTE_FLAT = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+  const NOTE_SHARP = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+  const norm2 = v => { let s = 0; for (const x of v) s += x * x; s = Math.sqrt(s) || 1; return v.map(x => x / s); };
+  const dot = (a, b) => { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; };
+  function avgRange(arr, frames, a, b) {
+    const out = new Array(12).fill(0); let n = 0;
+    for (let f = Math.max(0, a); f < Math.min(frames, b); f++) { for (let k = 0; k < 12; k++) out[k] += arr[f * 12 + k]; n++; }
+    if (!n && a < frames && a >= 0) { for (let k = 0; k < 12; k++) out[k] = arr[a * 12 + k]; n = 1; }
+    return n ? out.map(v => v / n) : out;
+  }
+
+  /* ---------- 5. akordy ---------- */
+  const QUAL = [
+    { q: '', iv: [0, 4, 7], pen: 0 }, { q: 'm', iv: [0, 3, 7], pen: 0 },
+    { q: '7', iv: [0, 4, 7, 10], pen: 0.05 }, { q: 'maj7', iv: [0, 4, 7, 11], pen: 0.07 }, { q: 'm7', iv: [0, 3, 7, 10], pen: 0.055 },
+    { q: 'dim', iv: [0, 3, 6], pen: 0.08 }, { q: 'sus4', iv: [0, 5, 7], pen: 0.12 }, { q: 'sus2', iv: [0, 2, 7], pen: 0.13 }
+  ];
+  const LABELS = [];
+  for (let r = 0; r < 12; r++) for (const Q of QUAL) {
+    const t = new Array(12).fill(0);
+    Q.iv.forEach((i, k) => t[(r + i) % 12] = k === 0 ? 1 : k === 1 ? 0.95 : k === 2 ? 0.8 : 0.75);
+    LABELS.push({ r, q: Q.q, iv: Q.iv, t: norm2(t), pen: Q.pen });
+  }
+  const NC = LABELS.length; // indeks „brak akordu”
+  function chordScores(tre, bas, energyRel) {
+    const v0 = tre.slice(); const mn = Math.min(...v0);
+    const v = norm2(v0.map(x => Math.max(0, x - mn * 0.7)));
+    const bn = norm2(bas.slice());
+    const bmax = Math.max(...bas) || 0;
+    const out = new Float64Array(NC + 1);
+    for (let i = 0; i < NC; i++) {
+      const L = LABELS[i];
+      let s = dot(v, L.t) - L.pen;
+      if (bmax > 0) s += 0.12 * bn[L.r] + 0.05 * bn[(L.r + L.iv[2]) % 12] + 0.02 * bn[(L.r + L.iv[1]) % 12] - 0.16 * Math.max(...bn.map((b, k) => L.iv.some(i2 => (L.r + i2) % 12 === k) ? 0 : b));
+      // septyma musi być wyraźnie słyszalna
+      const tri = (v[L.r] + v[(L.r + L.iv[1]) % 12] + v[(L.r + L.iv[2]) % 12]) / 3;
+      if (L.iv.length === 4 && v[(L.r + L.iv[3]) % 12] < 0.65 * tri) s -= 0.1;
+      // sus tylko gdy tercji naprawdę brak
+      if ((L.q === 'sus4' || L.q === 'sus2') && Math.max(v[(L.r + 3) % 12], v[(L.r + 4) % 12]) > 0.45 * tri) s -= 0.15;
+      out[i] = s;
+    }
+    out[NC] = energyRel < 0.08 ? 0.9 : 0.25 + (0.08 / Math.max(0.08, energyRel)) * 0.2;
+    return out;
+  }
+  // Viterbi po beatach; isDown[i] = 0 (nie), 1 (połowa taktu), 2 (początek taktu)
+  function decodeChords(S, isDown, keyBias) {
+    const n = S.length, K = NC + 1, kappa = 22;
+    let dp = new Float64Array(K); const bp = [];
+    for (let k = 0; k < K; k++) dp[k] = kappa * S[0][k] + (keyBias ? keyBias[k] : 0);
+    for (let i = 1; i < n; i++) {
+      const sw = isDown ? (isDown[i] === 2 ? -1.2 : isDown[i] === 1 ? -4 : -8) : -3.5;
+      let best = -1e18, bk = 0; for (let k = 0; k < K; k++) if (dp[k] > best) { best = dp[k]; bk = k; }
+      const nd = new Float64Array(K), b = new Int16Array(K);
+      for (let k = 0; k < K; k++) {
+        const stay = dp[k], move = best + sw;
+        if (stay >= move || bk === k) { nd[k] = stay; b[k] = k; } else { nd[k] = move; b[k] = bk; }
+        nd[k] += kappa * S[i][k] + (keyBias ? keyBias[k] : 0);
+      }
+      bp.push(b); dp = nd;
+    }
+    let k = 0; for (let j = 1; j < K; j++) if (dp[j] > dp[k]) k = j;
+    const path = new Array(n); path[n - 1] = k;
+    for (let i = n - 1; i > 0; i--) { k = bp[i - 1][k]; path[i - 1] = k; }
+    return path;
+  }
+
+  /* ---------- 6. tonacja (Krumhansl–Kessler) ---------- */
+  const KK_MAJ = [6.35, 2.23, 3.48, 2.33, 4.38, 4.09, 2.52, 5.19, 2.39, 3.66, 2.29, 2.88];
+  const KK_MIN = [6.33, 2.68, 3.52, 5.38, 2.60, 3.53, 2.54, 4.75, 3.98, 2.69, 3.34, 3.17];
+  function corr(a, b) { const ma = a.reduce((s, x) => s + x, 0) / 12, mb = b.reduce((s, x) => s + x, 0) / 12; let n = 0, da = 0, db = 0; for (let i = 0; i < 12; i++) { n += (a[i] - ma) * (b[i] - mb); da += (a[i] - ma) ** 2; db += (b[i] - mb) ** 2; } return n / Math.sqrt(da * db || 1); }
+  function detectKey(chordHist, chroma) {
+    // profil z akordów (ważone czasem) + chroma
+    const prof = chroma.slice();
+    const res = [];
+    for (let r = 0; r < 12; r++) {
+      const rot = a => a.map((_, i) => a[(i - r + 12) % 12]);
+      res.push({ r, minor: false, s: corr(prof, rot(KK_MAJ)) }, { r, minor: true, s: corr(prof, rot(KK_MIN)) });
+    }
+    // korekta akordami: tonika jako akord często i na początku/końcu
+    for (const k of res) {
+      const tonic = chordHist.get(k.r + (k.minor ? 'm' : '')) || 0;
+      const dom = (chordHist.get((k.r + 7) % 12 + '') || 0) + (chordHist.get((k.r + 7) % 12 + '7') || 0);
+      k.s += 0.25 * tonic + 0.08 * dom;
+    }
+    res.sort((a, b) => b.s - a.s);
+    return { best: res[0], second: res[1], conf: Math.max(0, Math.min(1, (res[0].s - res[1].s) * 4 + 0.5)) };
+  }
+
+  /* ---------- 7. takty i metrum – na siatce ósemek (tatum), żeby objąć 6/8, 7/8, 5/8 ---------- */
+  // cechy „początku taktu” w każdym punkcie siatki: zmiana harmonii, zmiana basu, akcent stopy
+  function gridFeatures(T, ch, ons, w) {
+    const n = T.length - 1, fr = t => Math.round(t * ch.fps);
+    const bt = [], bb = [];
+    for (let i = 0; i < n; i++) { bt.push(avgRange(ch.tre, ch.frames, fr(T[i]), Math.max(fr(T[i]) + 1, fr(T[i + 1])))); bb.push(avgRange(ch.bas, ch.frames, fr(T[i]), Math.max(fr(T[i]) + 1, fr(T[i + 1])))); }
+    const cosd = (a, b) => 1 - dot(norm2(a), norm2(b));
+    const sumv = (arr, a, b) => { const o = new Array(12).fill(0); for (let i = Math.max(0, a); i < Math.min(arr.length, b); i++) for (let k = 0; k < 12; k++) o[k] += arr[i][k]; return o; };
+    const hn = [], bn = [], kick = [], acc = [];
+    for (let i = 0; i < n; i++) {
+      hn.push(i === 0 ? 1 : cosd(sumv(bt, i - 2 * w, i), sumv(bt, i, i + 2 * w)));
+      bn.push(i === 0 ? 1 : cosd(sumv(bb, i - w, i), sumv(bb, i, i + w)));
+      const f = Math.round(T[i] * ons.fps); let m = 0, mt = 0;
+      for (let j = f - 2; j <= f + 2; j++) if (j >= 0 && j < ons.low.length) { m = Math.max(m, ons.low[j]); mt = Math.max(mt, ons.env[j]); }
+      kick.push(m); acc.push(mt);
+    }
+    const z = a => { const m = a.reduce((s, x) => s + x, 0) / a.length, sd = Math.sqrt(a.reduce((s, x) => s + (x - m) ** 2, 0) / a.length) || 1; return a.map(x => (x - m) / sd); };
+    const H = z(hn), Bn = z(bn), Kk = z(kick), Ac = z(acc);
+    return { d: H.map((h, i) => 0.55 * h + 0.3 * Bn[i] + 0.35 * Kk[i] + 0.1 * Ac[i]), bt, bb, kick: Kk, acc: Ac };
+  }
+  // metra w ósemkach: sub=2 (beat = ćwierćnuta), sub=3 (beat = ćwierćnuta z kropką)
+  const METERS = {
+    2: { 8: 0, 6: -0.35, 4: -1.6, 7: -0.9, 5: -1.2, 9: -1.5, 10: -2.0, 12: -2.0 },
+    3: { 6: 0, 12: -0.3, 9: -1.0, 7: -0.8, 5: -1.2, 8: -1.4 }
+  };
+  function decodeMeter(d, sub, opts) {
+    opts = opts || {};
+    const PRI = METERS[sub];
+    const S = []; Object.keys(PRI).map(Number).forEach(m => { for (let p = 0; p < m; p++) S.push({ m, p }); });
+    const n = d.length, K = S.length, gain = 2.5, switchCost = opts.noSwitch ? -1e9 : -2.5;
+    // pozycje pulsu: początek taktu musi wypaść na beat, chyba że metrum nieregularne (7/8, 5/8…)
+    let dp = new Float64Array(K).fill(-1e18); const bp = [];
+    S.forEach((s, k) => { dp[k] = (s.p === 0 ? gain * d[0] : 0) + PRI[s.m] - 0.15 * s.p; });
+    for (let i = 1; i < n; i++) {
+      const nd = new Float64Array(K).fill(-1e18), b = new Int16Array(K);
+      let bestEnd = -1e18, bestEndK = 0;
+      S.forEach((s, k) => { if (s.p === s.m - 1 && dp[k] > bestEnd) { bestEnd = dp[k]; bestEndK = k; } });
+      S.forEach((s, k) => {
+        if (s.p > 0) { nd[k] = dp[k - 1]; b[k] = k - 1; }
+        else {
+          const same = k + s.m - 1;
+          let v = dp[same], bk = same;
+          if (bestEnd + switchCost > v) { v = bestEnd + switchCost; bk = bestEndK; }
+          nd[k] = v + gain * d[i] + PRI[s.m] + (opts.onBeat && !opts.onBeat[i] && s.m % sub === 0 ? -3 : 0); b[k] = bk;
+        }
+      });
+      bp.push(b); dp = nd;
+    }
+    let k = 0; for (let j = 1; j < K; j++) if (dp[j] > dp[k]) k = j;
+    const score = dp[k];
+    const path = new Array(n); path[n - 1] = k;
+    for (let i = n - 1; i > 0; i--) { k = bp[i - 1][k]; path[i - 1] = k; }
+    const out = path.map(k2 => S[k2]); out.score = score;
+    out.switches = 0; for (let i = 1; i < n; i++) if (out[i].p === 0 && out[i].m !== out[i - 1].m) out.switches++;
+    return out;
+  }
+  // zmiany metrum: fragment w innym metrum musi mieć ≥ 2 takty i wyraźnie lepsze akcenty niż metrum główne
+  function meterPath(d, sub, onBeat) {
+    const free = decodeMeter(d, sub, { onBeat });
+    const n = d.length;
+    const bars = []; for (let i = 0; i < n; i++) if (free[i].p === 0 || i === 0) bars.push({ i, m: free[i].m });
+    const cnt = {}; bars.forEach(b => cnt[b.m] = (cnt[b.m] || 0) + b.m);
+    const dom = +Object.keys(cnt).sort((x, y) => cnt[y] - cnt[x])[0];
+    const out = free.map(s => ({ m: s.m, p: s.p }));
+    let k = 0;
+    while (k < bars.length) {
+      if (bars[k].m === dom) { k++; continue; }
+      let e = k; while (e < bars.length && bars[e].m !== dom) e++;
+      const a = bars[k].i, z = e < bars.length ? bars[e].i : n, L = z - a;
+      const own = bars.slice(k, e).map(b => d[b.i]);
+      const grid = []; for (let i = a; i < z; i += dom) grid.push(d[i]);
+      const avg = x => x.reduce((s, v) => s + v, 0) / Math.max(1, x.length);
+      const keep = e - k >= 2 && avg(own) - avg(grid) >= 0.8 && z < n - 2;
+      if (!keep && L % dom === 0) for (let i = a; i < z; i++) out[i] = { m: dom, p: (i - a) % dom };
+      k = e;
+    }
+    out.dom = dom;
+    return out;
+  }
+  // podział beatu na 2 czy 3 (metrum złożone 6/8, 12/8; swing ≠ trójki)
+  function subdivision(beats, ons) {
+    // okresowość obwiedni: ósemki co P/2 czy co P/3?
+    const per = beats.slice(1).map((b, i) => b - beats[i]).sort((a, b) => a - b)[Math.floor((beats.length - 1) / 2)] * ons.fps;
+    const ac = lag => { const L = Math.floor(lag), fr = lag - L; let v = 0, n = 0; for (let i = 0; i + L + 1 < ons.env.length; i++) { v += ons.env[i] * (ons.env[i + L] * (1 - fr) + ons.env[i + L + 1] * fr); n++; } return v / Math.max(1, n); };
+    const a2 = ac(per / 2), a3 = ac(per / 3);
+    let two = 0, three = 0;
+    for (let i = 0; i + 1 < beats.length; i++) {
+      const a = beats[i] * ons.fps, L = (beats[i + 1] - beats[i]) * ons.fps;
+      const at = x => { let m = 0; for (let j = Math.round(x) - 1; j <= Math.round(x) + 1; j++) if (j >= 0 && j < ons.env.length) m = Math.max(m, ons.env[j]); return m; };
+      two += at(a + L / 2); three += Math.min(at(a + L / 3), at(a + 2 * L / 3));
+    }
+    // trójki: oba punkty 1/3 i 2/3 wypełnione (swing ma tylko 2/3) albo okresowość ósemek wyraźnie co P/3
+    return (three > two * 1.25) || (a3 > a2 * 1.3 && three > two * 0.9) ? 3 : 2;
+  }
+  // nazwa metrum z liczby ósemek i rozkładu akcentów w takcie
+  function meterLabel(m, sub, accAt) {
+    // accAt(p) = średni akcent na pozycji p w taktach tego metrum
+    if (sub === 3) {
+      if (m % 3 === 0) return { num: m, den: 8, compound: true, groups: null };
+    } else if (m % 2 === 0) {
+      // 6 ósemek: 3/4 (akcenty 0,2,4) czy 6/8 (akcenty 0,3)?
+      if (m === 6 && accAt(3) > Math.max(accAt(2), accAt(4)) + 0.15) return { num: 6, den: 8, compound: true, groups: null };
+      if (m === 12 && accAt(3) + accAt(9) > accAt(2) + accAt(10) + 0.5) return { num: 12, den: 8, compound: true, groups: null };
+      return { num: m / 2, den: 4, compound: false, groups: null };
+    }
+    // nieregularne: podział na grupy 2 i 3 o najsilniejszych początkach
+    const opts = [];
+    const gen = (left, acc) => { if (!left) { opts.push(acc); return; } if (left >= 2) gen(left - 2, acc.concat(2)); if (left >= 3) gen(left - 3, acc.concat(3)); };
+    gen(m, []);
+    let best = opts[0], bv = -1e9;
+    for (const g of opts) { let p = 0, v = 0; for (let i = 0; i < g.length - 1; i++) { p += g[i]; v += accAt(p); } v /= Math.max(1, g.length - 1); v -= 0.05 * g.length; if (v > bv) { bv = v; best = g; } }
+    return { num: m, den: 8, compound: false, groups: best };
+  }
+
+  /* ---------- 8. części utworu ---------- */
+  function sections(barChords) {
+    const sig = barChords.map(b => b.join(' '));
+    const n = sig.length; const phrase = n >= 16 ? 4 : 2;
+    const phr = []; for (let i = 0; i < n; i += phrase) phr.push(sig.slice(i, i + phrase).join(' | '));
+    const sim = (a, b) => { const A = a.split(' | '), B = b.split(' | '); let s = 0; for (let i = 0; i < Math.max(A.length, B.length); i++) if (A[i] === B[i]) s++; return s / Math.max(A.length, B.length); };
+    const labels = []; const reps = [];
+    phr.forEach((p, i) => {
+      let lab = -1; for (let j = 0; j < reps.length; j++) if (sim(p, reps[j]) >= 0.75) { lab = j; break; }
+      if (lab < 0) { reps.push(p); lab = reps.length - 1; }
+      labels.push(lab);
+    });
+    // scal kolejne frazy o tej samej etykiecie
+    const out = []; labels.forEach((l, i) => { const bar = i * phrase; if (out.length && out[out.length - 1].lab === l) out[out.length - 1].len += Math.min(phrase, n - bar); else out.push({ lab: l, bar, len: Math.min(phrase, n - bar) }); });
+    const count = {}; labels.forEach(l => count[l] = (count[l] || 0) + 1);
+    const names = 'ABCDEFGHIJ';
+    let ord = 0; const map = {};
+    out.forEach((s, i) => {
+      if (map[s.lab] == null) map[s.lab] = count[s.lab] === 1 && i === 0 && out.length > 2 ? 'Intro' : count[s.lab] === 1 && i === out.length - 1 && out.length > 2 ? 'Outro' : 'Część ' + names[ord++ % names.length];
+      s.name = map[s.lab];
+    });
+    return out;
+  }
+
+  /* ---------- główna funkcja ---------- */
+  async function analyze(x, opts) {
+    opts = opts || {};
+    const prog = opts.progress || (() => { });
+    const ons = await onsetEnvelope(x, prog);
+    const tc = tempoCurve(ons.env, ons.fps);
+    let per = tc.per;
+    if (opts.tempoFactor && opts.tempoFactor !== 1) per = per.map(p => p / opts.tempoFactor);
+    let beats = trackBeats(ons.env, per, ons.fps);
+    prog(0.27);
+    const ch = await chromaFrames(x, prog);
+    prog(0.8); await tick();
+    const enMax = Math.max(...ch.en) || 1;
+    const loud = t => { const f = Math.min(ch.frames - 1, Math.max(0, Math.round(t * ch.fps))); return ch.en[f] / enMax; };
+    while (beats.length > 2 && loud(beats[0]) < 0.03) beats.shift();
+    while (beats.length > 2 && loud(beats[beats.length - 1]) < 0.03) beats.pop();
+    if (beats.length < 8) throw new Error('Za mało wyraźnego rytmu, żeby rozpoznać takty.');
+    // siatka ósemek: beat dzielony na 2 lub 3; gdy niepewne – wygrywa siatka, na której początki taktów są wyraźniejsze
+    const build = sub => {
+      const T = [], onBeat = [];
+      for (let i = 0; i + 1 < beats.length; i++) for (let k = 0; k < sub; k++) { T.push(beats[i] + (beats[i + 1] - beats[i]) * k / sub); onBeat.push(k === 0); }
+      T.push(beats[beats.length - 1]);
+      const gf = gridFeatures(T, ch, ons, sub);
+      const ms = meterPath(gf.d, sub, onBeat);
+      let sd = 0, nd = 0; for (let i = 0; i < ms.length; i++) if (ms[i].p === 0) { sd += gf.d[i]; nd++; }
+      return { sub, T, onBeat, gf, ms, q: sd / Math.max(1, nd) };
+    };
+    const sub0 = opts.sub || subdivision(beats, ons);
+    let G0 = build(sub0);
+    if (!opts.sub) { const G1 = build(sub0 === 2 ? 3 : 2); if (opts.debug) opts.debug.grids = [[G0.sub, G0.q, G0.ms.dom], [G1.sub, G1.q, G1.ms.dom]]; const starts = G => { const o = []; for (let i = 0; i < G.ms.length; i++) if (G.ms[i].p === 0) o.push(G.T[i]); return o; };
+      const s0 = starts(G0), s1 = starts(G1);
+      const same = s1.filter(t => s0.some(u => Math.abs(u - t) < 0.06)).length / Math.max(1, Math.max(s0.length, s1.length));
+      if (same < 0.7 && G1.q > G0.q + 0.1) G0 = G1; }
+    const { sub, T, gf, ms } = G0;
+    const n = T.length - 1;
+    // średnie akcenty na pozycjach w takcie (dla nazwy metrum i grupowania)
+    const accTab = {};
+    for (let i = 0; i < n; i++) { const s = ms[i]; const key = s.m; (accTab[key] = accTab[key] || { sum: new Array(s.m).fill(0), n: new Array(s.m).fill(0) }); accTab[key].sum[s.p] += gf.kick[i] * 0.6 + gf.acc[i] * 0.4; accTab[key].n[s.p]++; }
+    const labels = {};
+    for (const m in accTab) labels[m] = meterLabel(+m, sub, p => accTab[m].n[p] ? accTab[m].sum[p] / accTab[m].n[p] : 0);
+    // akordy na siatce: zmiana tania na początku taktu, średnia na beacie / grupie, droga między beatami
+    const S = []; for (let i = 0; i < n; i++) S.push(chordScores(gf.bt[i], gf.bb[i], loud(T[i])));
+    const isDown = ms.map((s, i) => {
+      if (s.p === 0) return 2;
+      const L = labels[s.m];
+      if (L.groups) { let p = 0; for (const g of L.groups) { if (p === s.p) return 1; p += g; } return 0; }
+      const beatLen = L.compound ? 3 : 2;
+      return s.p % beatLen === 0 ? 1 : 0;
+    });
+    let path = decodeChords(S, isDown);
+    const hist = new Map(); path.forEach(k => { if (k !== NC) { const L = LABELS[k]; const key = L.r + (L.q === 'm' || L.q === 'm7' ? 'm' : L.q === '7' ? '7' : ''); hist.set(key, (hist.get(key) || 0) + 1 / n); } });
+    const totalChroma = new Array(12).fill(0); gf.bt.forEach(v => { const s2 = v.reduce((a, b) => a + b, 0) || 1; v.forEach((x2, k) => totalChroma[k] += x2 / s2); });
+    const key = detectKey(hist, totalChroma);
+    const scale = key.best.minor ? [0, 2, 3, 5, 7, 8, 10, 11] : [0, 2, 4, 5, 7, 9, 11];
+    const keyBias = new Float64Array(NC + 1);
+    for (let k = 0; k < NC; k++) { const L = LABELS[k]; const inKey = L.iv.every(i => scale.includes(((L.r + i - key.best.r) % 12 + 12) % 12)); keyBias[k] = inKey ? 0.6 : 0; }
+    path = decodeChords(S, isDown, keyBias);
+    // odcinki: ocena raz, na uśrednionym chroma (bas z pierwszego beatu ×2)
+    for (let i = 0; i < n;) {
+      let j = i + 1; while (j < n && path[j] === path[i]) j++;
+      if (path[i] !== NC) {
+        const tre = new Array(12).fill(0), bas = new Array(12).fill(0);
+        for (let b = i; b < j; b++) { const w = b < i + sub ? 2 : 1; for (let k = 0; k < 12; k++) { tre[k] += gf.bt[b][k]; bas[k] += w * gf.bb[b][k]; } }
+        const sc = chordScores(tre, bas, 1);
+        let best = path[i]; for (let k = 0; k < NC; k++) if (sc[k] + keyBias[k] / 22 > sc[best] + keyBias[best] / 22) best = k;
+        for (let b = i; b < j; b++) path[b] = best;
+      }
+      i = j;
+    }
+    for (let i = 0; i < n;) {
+      let j = i + 1; while (j < n && path[j] === path[i]) j++;
+      if (path[i] === NC && j - i < 2 * sub && i > 0) for (let b = i; b < j; b++) path[b] = path[i - 1];
+      i = j;
+    }
+    prog(0.9); await tick();
+    const conf = path.map((k, i) => { let best = -1e9, second = -1e9; for (let j = 0; j < NC; j++) { const v = S[i][j]; if (v > best) { second = best; best = v; } else if (v > second) second = v; } return k === NC ? 1 : Math.max(0, Math.min(1, (S[i][k] - second + 0.02) * 12)); });
+    const names = (key.best.minor || [1, 3, 6, 8, 10, 5].includes(key.best.r)) ? NOTE_FLAT : NOTE_SHARP;
+    const bars = []; let cur = null;
+    for (let i = 0; i < n; i++) {
+      const s2 = ms[i];
+      if (s2.p === 0 || !cur) { cur = { start: T[i], idx: i, m: s2.m, label: labels[s2.m], chords: [], confs: [] }; bars.push(cur); }
+      const L = path[i];
+      const nm = L === NC ? 'N.C.' : names[LABELS[L].r] + LABELS[L].q;
+      const last = cur.chords[cur.chords.length - 1];
+      if (last && last.name === nm) last.t++; else cur.chords.push({ name: nm, t: 1 });
+      cur.confs.push(conf[i]);
+    }
+    const lenOf = b => b.chords.reduce((s3, c) => s3 + c.t, 0);
+    if (bars.length > 1 && lenOf(bars[0]) < bars[0].m) bars.shift();
+    if (bars.length > 1 && lenOf(bars[bars.length - 1]) < bars[bars.length - 1].m / 2) bars.pop();
+    bars.forEach((b, i) => {
+      b.len = lenOf(b); b.conf = b.confs.reduce((s3, c) => s3 + c, 0) / b.confs.length;
+      const end = i + 1 < bars.length ? bars[i + 1].start : T[Math.min(T.length - 1, b.idx + b.len)];
+      b.bpm = 60 * (b.len / 2) / Math.max(0.01, end - b.start); // ćwierćnuty na minutę
+    });
+    if (opts.debug) opts.debug.accTab = accTab, opts.debug.labels = labels, opts.debug.sub = sub;
+    return { bars, beats, key, sub, tempoW: tc.bpmW, duration: x.length / SR, sections: sections(bars.map(b => b.chords.map(c => c.name + ':' + c.t))) };
+  }
+
+  /* ---------- zapis utworu + opis ---------- */
+  function durTok(q) {
+    const M = { 4: 'w', 6: 'w.', 2: 'h', 3: 'h.', 1: 'q', 1.5: 'q.', 0.5: 'e', 0.75: 'e.', 0.25: 's' };
+    if (M[q] != null) return M[q];
+    const n = Math.round(q / 0.5); return n + 'e';
+  }
+  function keyText(k) {
+    const n = (k.minor ? NOTE_FLAT : ([5, 10, 3, 8, 1].includes(k.r) ? NOTE_FLAT : NOTE_SHARP))[k.r];
+    return n + (k.minor ? ' moll' : ' dur');
+  }
+  const meterStr = L => L.num + '/' + L.den + (L.groups ? ' ' + L.groups.join('+') : '');
+  const bpmStr = (qbpm, L) => L.compound ? Math.round(qbpm * 2 / 3) + ' q.' : String(Math.round(qbpm));
+  function toSong(res, title) {
+    const Ls = [];
+    Ls.push('tytuł: ' + (title || 'Analiza podkładu'));
+    Ls.push('tonacja: ' + keyText(res.key.best));
+    const bars = res.bars, b0 = bars[0];
+    const med = arr => { const s2 = arr.slice().sort((a, b) => a - b); return s2[Math.floor(s2.length / 2)]; };
+    // odcinki tempa: zmiana > 4% utrzymana co najmniej 2 takty
+    const tempi = []; let segStart = 0;
+    for (let i = 0; i <= bars.length; i++) {
+      const segB = med(bars.slice(segStart, Math.max(segStart + 1, i)).map(b => b.bpm));
+      if (i === bars.length) { tempi.push({ at: segStart, bpm: segB }); break; }
+      const look = bars.slice(i, i + 2).map(b => b.bpm);
+      if (i > segStart + 1 && look.length === 2 && look.every(v => Math.abs(v / segB - 1) > 0.04)) { tempi.push({ at: segStart, bpm: segB }); segStart = i; }
+    }
+    const tempoAt = new Map(tempi.map(t => [t.at, t.bpm]));
+    Ls.push('bpm: ' + bpmStr(tempi[0].bpm, b0.label));
+    Ls.push('metrum: ' + meterStr(b0.label));
+    Ls.push('');
+    const secAt = new Map(res.sections.map(s2 => [s2.bar, s2.name]));
+    let line = [], prevM = meterStr(b0.label), prevBpm = bpmStr(tempi[0].bpm, b0.label);
+    const flush = () => { if (line.length) { Ls.push('|' + line.join('|') + '|'); line = []; } };
+    bars.forEach((b, i) => {
+      if (secAt.has(i)) { flush(); Ls.push('[' + secAt.get(i) + ']'); }
+      let pre = '';
+      const ms = meterStr(b.label);
+      if (ms !== prevM) { pre += '{' + ms + '} '; prevM = ms; }
+      if (tempoAt.has(i) && i > 0) { const bs = bpmStr(tempoAt.get(i), b.label); if (bs !== prevBpm) { pre += '{bpm ' + bs + '} '; prevBpm = bs; } }
+      const toks = b.chords.length === 1 && b.chords[0].t === b.m ? [b.chords[0].name] : b.chords.map(c => c.name + ':' + durTok(c.t / 2));
+      line.push(' ' + pre + toks.join(' ') + ' ');
+      if (line.length === 4) flush();
+    });
+    flush();
+    return Ls.join('\n') + '\n';
+  }
+  function report(res) {
+    const R = [];
+    const bars = res.bars;
+    const tempi = bars.map(b => b.bpm);
+    const med = tempi.slice().sort((a, b) => a - b)[Math.floor(tempi.length / 2)];
+    const mn = Math.min(...tempi), mx = Math.max(...tempi);
+    const L0 = bars[0].label;
+    const tv = q => L0.compound ? Math.round(q * 2 / 3) + ' ♩. / min' : Math.round(q) + ' BPM';
+    R.push({ k: 'Tempo', v: tv(med) + (mx / mn < 1.06 ? ' – stałe' : ` – zmienia się (${tv(mn)} – ${tv(mx)})`) });
+    const changes = []; bars.forEach((b, i) => { if (i && meterStr(b.label) !== meterStr(bars[i - 1].label)) changes.push('takt ' + (i + 1) + ': ' + meterStr(b.label)); });
+    R.push({ k: 'Metrum', v: meterStr(L0) + (changes.length ? ' · zmiany: ' + changes.slice(0, 8).join(', ') + (changes.length > 8 ? '…' : '') : ' – bez zmian') });
+    R.push({ k: 'Tonacja', v: keyText(res.key.best) + ' (pewność ' + Math.round(res.key.conf * 100) + '%; druga możliwość: ' + keyText(res.key.second) + ')' });
+    const uniq = []; bars.forEach(b => b.chords.forEach(c => { if (!uniq.includes(c.name)) uniq.push(c.name); }));
+    R.push({ k: 'Akordy', v: uniq.join(', ') });
+    R.push({ k: 'Budowa', v: bars.length + ' taktów · ' + res.sections.map(s2 => s2.name + ' (' + s2.len + ')').join(' → ') });
+    const unsure = bars.map((b, i) => ({ i, c: b.conf })).filter(x2 => x2.c < 0.45).map(x2 => x2.i + 1);
+    R.push({ k: 'Do sprawdzenia', v: unsure.length ? 'takty ' + compress(unsure) : 'nic – analiza pewna' });
+    R.push({ k: 'Długość', v: Math.floor(res.duration / 60) + ':' + String(Math.round(res.duration % 60)).padStart(2, '0') + ' · pierwszy takt od ' + bars[0].start.toFixed(2) + ' s' });
+    return R;
+  }
+  function compress(arr) {
+    const out = []; let a = arr[0], p = arr[0];
+    for (let i = 1; i <= arr.length; i++) { if (arr[i] === p + 1) { p = arr[i]; continue; } out.push(a === p ? String(a) : a + '–' + p); a = p = arr[i]; }
+    return out.join(', ');
+  }
+
+  G.ANALYZE = { analyze, toSong, report, SR, _int: { onsetEnvelope, tempoCurve, trackBeats, chromaFrames, decodeMeter, meterPath, gridFeatures, LABELS } };
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* ===== Gryf na żywo — aplikacja ===== */
 (function () {
   'use strict';
@@ -2507,7 +3100,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '2.3';
+  const VERSION = '2.4';
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
@@ -4360,7 +4953,8 @@ odliczanie: 1
         const k = (e.chord.nc ? '' : e.chordOnly ? 'tylko akord' : e.scaleObj ? shortScale(e) : '') + (e.posSet ? ' · p' + V.posSort([...e.posSet]).join('+') : '');
         return `<button data-ei="${i}" class="${cls}" style="flex-grow:${e.durQ}" title="${esc(e.chord.symbol + (k ? ' · ' + k : '') + ' · ' + fmtDur(e.durQ))}"><span class="c">${e.tied ? '–' : esc(prettyAcc(e.chord.symbol))}</span><span class="k">${esc(k)}</span></button>`;
       }).join('');
-      return `<div class="sbar" style="width:${w}px" data-bar="${b.index}"><div class="hd"><span>${b.index + 1}${showM ? ' · ' + m : ''}${showT ? ' · ♩' + Math.round(bpm * 10) / 10 : ''}</span>${b.section ? `<span class="sec">${esc(b.section)}</span>` : ''}${b.index < sg.mapped ? '<span class="mp" title="Takt zmapowany z nagrania">●</span>' : ''}</div><div class="ev">${evs || '<button disabled><span class="c">·</span></button>'}</div></div>`;
+      const uns = ST.meta && ST.meta.unsure && ST.meta.unsure.includes(b.index);
+      return `<div class="sbar${uns ? ' unsure' : ''}" style="width:${w}px" data-bar="${b.index}"${uns ? ' title="Analiza nie była pewna tego taktu – sprawdź akordy"' : ''}><div class="hd"><span>${b.index + 1}${showM ? ' · ' + m : ''}${showT ? ' · ♩' + Math.round(bpm * 10) / 10 : ''}</span>${b.section ? `<span class="sec">${esc(b.section)}</span>` : ''}${b.index < sg.mapped ? '<span class="mp" title="Takt zmapowany z nagrania">●</span>' : ''}</div><div class="ev">${evs || '<button disabled><span class="c">·</span></button>'}</div></div>`;
     }).join('') || '<p class="muted small">Brak taktów. Dopisz je w zapisie utworu po prawej, np. <span class="mono">| C | Am | F | G |</span></p>';
   }
   function originOf(ev) {
@@ -4670,6 +5264,7 @@ odliczanie: 1
   }
   function audioPanel() {
     const meta = ST.meta; const has = !!(meta && meta.audio);
+    $('#stAnBox').hidden = !has || ST.missing;
     $('#stAudioDel').hidden = !has; $('#stWaveWrap').hidden = !has || ST.missing; $('#stTransport').hidden = !has || ST.missing; $('#stTapBox').hidden = !has || ST.missing;
     $('#stAudioPick').textContent = has ? 'Zmień podkład' : 'Wczytaj podkład';
     const sg = ST.song;
@@ -4923,6 +5518,81 @@ odliczanie: 1
     $('#soImpFile').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) soImportFile(f); };
   }
 
+  /* ---------- automatyczna analiza podkładu ---------- */
+  const AN = { res: null, opts: {}, busy: false };
+  async function decodeForAnalysis(blob) {
+    const buf = await blob.arrayBuffer();
+    const C = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const tmp = new C(1, 2, 44100);
+    const audio = await new Promise((res, rej) => { const p = tmp.decodeAudioData(buf, res, rej); if (p && p.then) p.then(res, rej); });
+    const SR = ANALYZE.SR, len = Math.ceil(audio.duration * SR);
+    const off = new C(1, len, SR);
+    const src = off.createBufferSource(); src.buffer = audio; src.connect(off.destination); src.start(0);
+    const out = await off.startRendering();
+    return out.getChannelData(0);
+  }
+  async function runAnalysis(extra) {
+    if (AN.busy || !ST.meta) return;
+    const blob = await DB.get(ST.meta.id).catch(() => null);
+    if (!blob) { toast('Brak podkładu w tej przeglądarce'); return; }
+    AN.busy = true; AN.opts = Object.assign({}, AN.opts, extra || {});
+    const bar = $('#stAnProg'); bar.hidden = false; $('#stAnalyze').disabled = true;
+    const setP = (f, txt) => { bar.firstElementChild.style.width = Math.round(f * 100) + '%'; bar.lastElementChild.textContent = txt || Math.round(f * 100) + '%'; };
+    try {
+      setP(0.02, 'Dekoduję nagranie…'); await new Promise(r => setTimeout(r, 30));
+      const x = await decodeForAnalysis(blob);
+      AN.res = await ANALYZE.analyze(x, { progress: f => setP(f, f < 0.27 ? 'Szukam rytmu…' : f < 0.8 ? 'Słucham harmonii…' : 'Układam takty i akordy…'), tempoFactor: AN.opts.tempoFactor, sub: AN.opts.sub });
+      AN.songId = ST.meta.id;
+      setP(1, 'Gotowe');
+      renderAnalysis();
+    } catch (e) { $('#stAnRes').innerHTML = '<p class="small" style="color:var(--bad)">' + esc(e.message || String(e)) + '</p>'; }
+    finally { AN.busy = false; $('#stAnalyze').disabled = false; setTimeout(() => { bar.hidden = true; }, 600); }
+  }
+  function analysisTitle() {
+    const sg = ST.song; if (sg && sg.title && sg.title !== 'Bez tytułu') return sg.title;
+    return (ST.meta.audio && ST.meta.audio.name || 'Podkład').replace(/\.[^.]+$/, '').replace(/[_]+/g, ' ');
+  }
+  function analysisText() {
+    const res = AN.res; const R = ANALYZE.report(res);
+    const head = ['# Analiza automatyczna podkładu (' + new Date().toISOString().slice(0, 10) + ')'].concat(R.map(r => '# ' + r.k + ': ' + r.v));
+    const body = ANALYZE.toSong(res, analysisTitle()).split('\n');
+    // komentarz po nagłówku (po linii metrum)
+    const at = body.findIndex(l => /^metrum:/.test(l));
+    body.splice(at + 1, 0, ...head);
+    return body.join('\n');
+  }
+  function renderAnalysis() {
+    const box = $('#stAnRes'); const res = AN.res; if (!res || AN.songId !== (ST.meta && ST.meta.id)) { box.innerHTML = ''; return; }
+    const R = ANALYZE.report(res);
+    const text = analysisText();
+    const sub = res.sub;
+    box.innerHTML = `<table class="antab">${R.map(r => `<tr><td>${esc(r.k)}</td><td>${esc(prettyAcc(r.v))}</td></tr>`).join('')}</table>
+      <div class="row"><span class="small muted">Coś się nie zgadza?</span>
+        <button class="btn" data-an="t2">Tempo ×2</button><button class="btn" data-an="t05">Tempo ÷2</button>
+        <button class="btn" data-an="s${sub === 3 ? 2 : 3}">${sub === 3 ? 'Ósemki po 2 (4/4, 3/4)' : 'Ósemki po 3 (6/8, 12/8)'}</button></div>
+      <pre class="anpre">${esc(text)}</pre>
+      <div class="row"><button class="btn primary" id="anApply">Wstaw do utworu (zastąpi zapis i mapę taktów)</button><button class="btn" id="anDiscard">Odrzuć</button></div>
+      <p class="small muted">Takty, których analiza nie jest pewna, będą obrysowane na siatce taktów. Sprawdź je, słuchając z klikiem według mapy.</p>`;
+    box.onclick = e => {
+      const b = e.target.closest('[data-an]');
+      if (b) { const v = b.dataset.an; const f = AN.opts.tempoFactor || 1; if (v === 't2') runAnalysis({ tempoFactor: f * 2 }); else if (v === 't05') runAnalysis({ tempoFactor: f / 2 }); else runAnalysis({ sub: +v.slice(1) }); return; }
+      if (e.target.id === 'anDiscard') { AN.res = null; box.innerHTML = ''; return; }
+      if (e.target.id === 'anApply') {
+        const m = ST.meta; if (!m) return;
+        const hasBars = ST.song && ST.song.bars.length > 1;
+        if (hasBars && !confirm('Zastąpić obecny zapis utworu wynikiem analizy?' + (m.solo && m.solo.length ? ' Partia solo zostanie, ale może przestać pasować do taktów.' : ''))) return;
+        m.barTimes = res.bars.map(b2 => Math.round(b2.start * 1000) / 1000);
+        m.offset = m.barTimes[0];
+        m.unsure = res.bars.map((b2, i) => b2.conf < 0.45 ? i : -1).filter(i => i >= 0);
+        commitText(analysisText());
+        AN.res = null; box.innerHTML = '';
+        saveSongs(); if (P.songId === m.id) loadSong(m.id, true);
+        renderStudio();
+        toast('Wstawiono: ' + res.bars.length + ' taktów z mapą z nagrania');
+      }
+    };
+  }
+
   /* ---------- import tabulatur ---------- */
   async function libText(id) {
     const el = document.getElementById(id); if (!el) throw new Error('Brak biblioteki ' + id);
@@ -5148,6 +5818,7 @@ odliczanie: 1
   function bindStudio() {
     bindSolo();
     $('#stCommonBtn').onclick = renderCommon;
+    $('#stAnalyze').onclick = () => { AN.opts = {}; runAnalysis(); };
     // nagłówek utworu
     const dir = (id, key, label, check) => $(id).onchange = e => {
       const v = e.target.value.trim();
