@@ -321,11 +321,14 @@ main.wide { max-width: 1680px; }
 .anpre{max-height:260px;overflow:auto;font:12.5px/1.4 var(--mono);background:#0007;padding:10px;border-radius:8px;margin:0;white-space:pre}
 .sbar.unsure{outline:2px dashed var(--warn);outline-offset:-2px}
 
+.tapedit{cursor:pointer;border-bottom:1px dashed currentColor}
+#tempoVal{cursor:pointer}
+
 </style>
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.5</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.6</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -352,7 +355,7 @@ main.wide { max-width: 1680px; }
           <div class="panel">
             <div class="pos">
               <span>Takt <b id="posBar">–</b><span class="muted" id="posBars">/0</span></span>
-              <span>Metrum <b id="posMeter">4/4</b></span>
+              <span>Metrum <b id="posMeter" class="tapedit" title="Dotknij, żeby zmienić metrum">4/4</b></span>
               <span class="sec" id="posSec"></span>
             </div>
             <div class="stage">
@@ -411,7 +414,7 @@ main.wide { max-width: 1680px; }
               <label class="chk"><input type="checkbox" id="optClick"> Klik metronomu</label>
               <label class="chk"><input type="checkbox" id="optSub"> Podziały</label>
             </div>
-            <label class="chk"><input type="checkbox" id="optCount" checked> Odliczanie przed startem</label>
+            <label class="chk"><input type="checkbox" id="optCount" checked> Odliczanie przed startem (z podkładem zawsze 2 takty)</label>
             <label class="chk"><input type="checkbox" id="optTapStart"> Start z tapów (odlicz 4 tapami)</label>
             <label class="chk"><input type="checkbox" id="optLiveBacking"> Graj podkład utworu, jeśli go ma</label>
             <p class="small muted" id="liveBackingNote" hidden></p>
@@ -457,7 +460,7 @@ main.wide { max-width: 1680px; }
             <div class="row">
               <label class="chk"><input type="checkbox" id="optClickT" checked> Klik</label>
               <label class="chk"><input type="checkbox" id="optSubT"> Podziały</label>
-              <label class="chk"><input type="checkbox" id="optCountT" checked> Odliczanie</label>
+              <label class="chk"><input type="checkbox" id="optCountT" checked> Odliczanie (z podkładem zawsze 2 takty)</label>
             </div>
             <h3>Pętla</h3>
             <div class="row">
@@ -544,7 +547,6 @@ main.wide { max-width: 1680px; }
             <div class="stack" style="gap:4px"><span class="small muted">Pozycje:</span><div id="scPos"></div></div>
             <div class="flegend" id="fingerLegend"></div>
             <div class="row">
-              <button class="btn primary" id="scShow">Pokaż na diodach</button>
               <button class="btn" id="scCopy">Kopiuj zapis do utworu</button>
             </div>
             <div class="row">
@@ -573,7 +575,7 @@ main.wide { max-width: 1680px; }
               <button class="btn" id="chvNext">▶</button>
             </div>
             <div class="fb-wrap" id="fbChord"></div>
-            <button class="btn" id="chvShow">Pokaż chwyt na diodach</button>
+            <p class="small muted">Wybrany chwyt od razu świeci na diodach.</p>
             <h3>Podpowiedzi do solówki</h3>
             <div class="sug" id="chSug"></div>
             <details><summary class="small">Wszystkie skale z katalogu zawierające ten akord</summary>
@@ -627,6 +629,7 @@ main.wide { max-width: 1680px; }
               <label class="f">Tytuł <input type="text" id="stTitle"></label>
               <label class="f">Tonacja <input type="text" id="stKey" placeholder="np. E moll, D dorian"></label>
               <label class="f">Tempo (BPM) <input type="text" id="stBpm" placeholder="np. 96 albo 80 q."></label>
+              <label class="f">Metrum <input type="text" id="stMeter" placeholder="np. 4/4, 6/8, 7/8 2+2+3"></label>
               <label class="f">Kapodaster <select id="stCapo"></select></label>
               <label class="f">Akordy w zapisie <select id="stCapoMode"><option value="">jak w ustawieniach</option><option value="chwyty">chwyty</option><option value="brzmiące">dźwięki brzmiące</option></select></label>
             </div>
@@ -675,6 +678,7 @@ main.wide { max-width: 1680px; }
           <div class="panel">
             <div class="row">
               <h3 class="grow">Takty</h3>
+              <button class="btn primary" id="stPlanBtn" title="Jedna skala modalna na frazę 2–4 taktów; w bluesie pentatoniki z dźwiękiem charakterystycznym">Ułóż skale frazami</button>
               <button class="btn" id="stCommonBtn">Jedna skala na cały utwór?</button>
             </div>
             <span class="small muted">Kliknij akord, aby go edytować i zobaczyć podpowiedzi skal do solówki.</span>
@@ -803,6 +807,17 @@ akordy: chwyty     # albo: brzmiące
             </div>
             <p class="small" id="bleStatus">Niepołączono.</p>
             <label class="chk"><input type="checkbox" id="bleShowAll"> Pokaż wszystkie urządzenia (gdy nakładki VNOTE nie ma na liście)</label>
+            <details class="small" id="bleWinHelp"><summary><b>PC z Windows (Edge/Chrome) nie widzi nakładki?</b></summary>
+              <ol>
+                <li><b>Odłącz nakładkę od iPhone'a</b> – zamknij Bluefy i aplikację Visual Note albo wyłącz Bluetooth w iPhonie. Połączona nakładka przestaje się ogłaszać i PC jej nie zobaczy.</li>
+                <li><b>Nie paruj nakładki w Ustawieniach Windows.</b> Jeśli już tam jest: Ustawienia → Bluetooth i urządzenia → nakładka → Usuń urządzenie. Łączy się tylko przyciskiem w tej aplikacji.</li>
+                <li><b>Adapter musi obsługiwać Bluetooth Low Energy (4.0 lub nowszy).</b> Menedżer urządzeń → Bluetooth: musi być wpis <i>Microsoft Bluetooth LE Enumerator</i>. Klawiatura może działać po starym Bluetooth 2.x/3.0 – wtedy nakładki (BLE) adapter nie zobaczy.</li>
+                <li>Gdy w komputerze są dwa adaptery (wbudowany i HAMA), Windows używa jednego – w Menedżerze urządzeń wyłącz ten nieużywany.</li>
+                <li>Windows: Ustawienia → Prywatność i zabezpieczenia → Radiotelefony → zezwól aplikacjom na sterowanie radiotelefonami; Bluetooth włączony.</li>
+                <li>Edge: strona musi być otwarta przez https (marekgryf.github.io), nie z pliku na dysku. W razie blokady: kłódka przy adresie → Uprawnienia witryny → Bluetooth: Zezwalaj. Wpisz w pasku <span class="mono">edge://bluetooth-internals</span> → Devices → Start scan: jeśli VNOTE nie pojawi się tutaj, problemem jest adapter, nie aplikacja.</li>
+                <li>Zaznacz <i>Pokaż wszystkie urządzenia</i> i połącz – nakładka może się ogłaszać bez nazwy albo pod inną nazwą; wybierz nowy wpis, który znika po wyłączeniu nakładki.</li>
+              </ol>
+            </details>
             <label class="chk"><input type="checkbox" id="ledEnable" checked> Wysyłaj obraz gryfu na diody</label>
             <label class="f">Jasność diod <span class="mono" id="brVal">60%</span><input type="range" id="brightness" min="5" max="100" value="60"></label>
             <label class="f">Wyprzedzenie diod (kompensacja opóźnienia Bluetooth) <span class="mono" id="leadVal">40 ms</span><input type="range" id="lead" min="0" max="200" step="5" value="40"></label>
@@ -1125,7 +1140,7 @@ akordy: chwyty     # albo: brzmiące
   for (const [family, pl, en, iv, al] of EXTRA) addScale(family, pl, en, iv, al);
 
   // Katalog główny – 48 skal jak w Scale Teacher: [kategoria, nazwa PL, EN, interwały, stopnie, opis]
-  const CAT_LABEL = { major: 'Dur', minor: 'Moll', pentatonic: 'Pentatoniki', modes: 'Mody', harmonic: 'Harmoniczne', melodic: 'Melodyczne', blues: 'Bluesowe', exotic: 'Egzotyczne', jazz: 'Jazzowe' };
+  const CAT_LABEL = { major: 'Dur', minor: 'Moll', pentatonic: 'Pentatoniki', modes: 'Mody', harmonic: 'Harmoniczne', melodic: 'Melodyczne', blues: 'Bluesowe', exotic: 'Egzotyczne', jazz: 'Jazzowe', pentmod: 'Pentatoniki modalne' };
   const CATALOG_DEF = [
     ['major', 'Durowa (jońska)', 'Major (Ionian)', [0, 2, 4, 5, 7, 9, 11], '1 2 3 4 5 6 7', 'Podstawa muzyki zachodniej – jasna i radosna. Pop, rock, muzyka klasyczna, country.'],
     ['minor', 'Molowa naturalna (eolska)', 'Natural Minor (Aeolian)', [0, 2, 3, 5, 7, 8, 10], '1 2 b3 4 5 b6 b7', 'Równoległa molowa do durowej – smutna, zamyślona. Rock, metal, klasyka, folk.'],
@@ -1175,6 +1190,17 @@ akordy: chwyty     # albo: brzmiące
     ['exotic', 'Neapolitańska molowa', 'Neapolitan Minor', [0, 1, 3, 5, 7, 8, 11], '1 b2 b3 4 5 b6 7', 'Molowa harmoniczna z małą sekundą. Klasyka, neoklasyczny metal.'],
     ['exotic', 'Prometejska', 'Prometheus', [0, 2, 4, 6, 9, 10], '1 2 3 #4 6 b7', 'Mistyczna skala Skriabina – eteryczna i nowoczesna.'],
     ['exotic', 'Arabska', 'Arabian', [0, 2, 4, 5, 6, 8, 10], '1 2 3 4 b5 b6 b7', 'Inspirowana makamami – z charakterystycznym trytonem.'],
+    // pentatonika + dźwięk charakterystyczny modusu: pudełko, które palce znają, z kolorem skali modalnej
+    ['pentmod', 'Pentatonika dorycka', 'Dorian Pentatonic', [0, 3, 5, 7, 9, 10], '1 b3 4 5 6 b7', 'Pentatonika molowa + seksta wielka (6) – dorycki kolor. Santana, funk, blues molowy; świetna na m7 i na IV7 w bluesie.'],
+    ['pentmod', 'Pentatonika frygijska', 'Phrygian Pentatonic', [0, 1, 3, 5, 7, 10], '1 b2 b3 4 5 b7', 'Pentatonika molowa + mała sekunda (b2) – mroczna, hiszpańska. Metal, flamenco-rock.'],
+    ['pentmod', 'Pentatonika eolska', 'Aeolian Pentatonic', [0, 3, 5, 7, 8, 10], '1 b3 4 5 b6 b7', 'Pentatonika molowa + mała seksta (b6) – smutna, balladowa. Rock, ballady molowe.'],
+    ['pentmod', 'Pentatonika molowa + 9', 'Minor Pentatonic add9', [0, 2, 3, 5, 7, 10], '1 2 b3 4 5 b7', 'Pentatonika molowa + sekunda wielka (9) – miękka, śpiewna; pasuje i do doryckiej, i do eolskiej.'],
+    ['pentmod', 'Pentatonika miksolidyjska', 'Mixolydian Pentatonic', [0, 2, 4, 7, 9, 10], '1 2 3 5 6 b7', 'Pentatonika durowa + mała septyma (b7) – dominantowa, bluesowo-rockowa. Na akordy 7 (Allman Brothers, Hendrix).'],
+    ['pentmod', 'Pentatonika lidyjska', 'Lydian Pentatonic', [0, 2, 4, 6, 7, 9], '1 2 3 #4 5 6', 'Pentatonika durowa + kwarta zwiększona (#4) – unosząca się, filmowa. Na maj7 i add#11.'],
+    ['pentmod', 'Pentatonika durowa + 7', 'Major Pentatonic add7', [0, 2, 4, 7, 9, 11], '1 2 3 5 6 7', 'Pentatonika durowa + septyma wielka (7) – jasna, jońska, „soft-rock”. Na maj7.'],
+    ['pentmod', 'Pentatonika durowa + 4', 'Major Pentatonic add4', [0, 2, 4, 5, 7, 9], '1 2 3 4 5 6', 'Pentatonika durowa + kwarta (4) – folkowa, country; kwarta jako dźwięk przejściowy.'],
+    ['pentmod', 'Bluesowa dorycka', 'Dorian Blues', [0, 3, 5, 6, 7, 9, 10], '1 b3 4 b5 5 6 b7', 'Skala bluesowa + seksta wielka (6) – cały blues 12-taktowy jednym pudełkiem: b3 i b5 na I7, 6 na IV7.'],
+    ['pentmod', 'Bluesowa miksolidyjska', 'Mixolydian Blues', [0, 2, 3, 4, 7, 9, 10], '1 2 b3 3 5 6 b7', 'Pentatonika durowa + b3 (blue note) + b7 – mieszanka dur/moll typowa dla B.B. Kinga. Na I7 w bluesie.'],
   ];
   const CATALOG = []; // {cat, catPl, pl, en, mask, deg, desc, scale}
   for (const [cat, pl, en, iv, deg, desc] of CATALOG_DEF) {
@@ -1895,6 +1921,8 @@ akordy: chwyty     # albo: brzmiące
           }
         }
         if (cell) {
+          // sama skala (bez akordu): dźwięki skali w pełnej jasności – na diodach nie mogą zniknąć
+          if (cell.cls === 'scale' && (show === 'scale' || !opts.chord || opts.chord.nc)) cell.full = true;
           if (outPos) cell.dim = true;
           else if (opts.cells && opts.cells.get) { const fg = opts.cells.get(s * 100 + f); if (fg != null) cell.finger = fg; }
         }
@@ -2513,7 +2541,98 @@ akordy: chwyty     # albo: brzmiące
     const pen = sc => (/^bebop/i.test(sc.en) ? 2 : 0) + (sc.family === 'Egzotyczne' || sc.family === 'Jazzowe' ? 1 : 0) + (sc.family === 'Mody' ? 0.1 : 0);
     return [...bySet.values()].sort((a, b) => b.fit - a.fit || pen(a.scale) - pen(b.scale) || a.scale.size - b.scale.size).slice(0, opts.limit || 6);
   }
-  G.SUGGEST = { forChord, common, targetText };
+
+  /* ---------- plan skal na frazy (2–4 takty), modalnie, bluesowo na pentatonikach ---------- */
+  // waga „ciekawości”: zwykła dur/moll najniżej, modusy z dźwiękiem charakterystycznym wyżej
+  const PLAN_POOL = [
+    ['ionian', 0, 0], ['dorian', 0.7, 0.4], ['phrygian', 0.45, 0], ['lydian', 0.7, 0], ['mixolydian', 0.7, 0.45], ['aeolian', 0.1, 0], ['locrian', 0, 0],
+    ['harmonic minor', 0.3, 0], ['melodic minor', 0.35, 0], ['phrygian dominant', 0.5, 0], ['lydian dominant', 0.5, 0.3], ['mixolydian b6', 0.3, 0],
+    ['locrian natural 2', 0.3, 0], ['altered', 0.3, 0.1], ['half whole', 0.2, 0.1],
+    ['minor pentatonic', 0.2, 0.8], ['major pentatonic', 0.2, 0.6], ['blues scale', 0.25, 0.9], ['major blues', 0.2, 0.8],
+    ['dorian pentatonic', 0.6, 1.1], ['mixolydian pentatonic', 0.6, 1.1], ['lydian pentatonic', 0.6, 0.3], ['phrygian pentatonic', 0.45, 0.3],
+    ['aeolian pentatonic', 0.35, 0.5], ['minor pentatonic add9', 0.4, 0.7], ['major pentatonic add7', 0.4, 0.2], ['major pentatonic add4', 0.2, 0.3],
+    ['dorian blues', 0.5, 1.25], ['mixolydian blues', 0.5, 1.15]
+  ];
+  const MISS = { R: 6, '3': 4, '5': 1.5, '7': 2.5, '6': 2.2 };
+  function isDom(ch) { const f = ch.flags; return f && !f.power && f.num >= 7 && !f.minor && !f.maj7 && !f.dim && !f.halfdim && f.sus == null; }
+  function detectBlues(song, evs) {
+    if (/blues/i.test((song.title || '') + ' ' + (song.key ? song.key.text : ''))) return true;
+    let tot = 0, dom = 0; const roots = new Set();
+    for (const e of evs) { tot += e.durQ; if (isDom(e.chord)) { dom += e.durQ; roots.add(e.chord.root); } }
+    if (tot && dom / tot >= 0.5 && roots.size >= 2) return true;
+    // blues molowy: m7 na i i iv + V7
+    if (song.key) {
+      const k = song.key.root; let hit = 0;
+      for (const e of evs) { const o = ((e.chord.root - k) % 12 + 12) % 12; if ((o === 0 || o === 5) && e.chord.flags && e.chord.flags.minor && e.chord.flags.num >= 7) hit += e.durQ; if (o === 7 && isDom(e.chord)) hit += e.durQ; }
+      if (tot && hit / tot >= 0.75 && evs.some(e => isDom(e.chord))) return true;
+    }
+    return false;
+  }
+  function plan(song, opts) {
+    opts = opts || {};
+    const evs = song.events.filter(e => !e.tied && e.chord && !e.chord.nc);
+    if (!evs.length) return { blues: false, items: [], phrases: [] };
+    const blues = opts.blues != null ? opts.blues : detectBlues(song, evs);
+    const pool = [];
+    for (const [n, wi, wb] of PLAN_POOL) { const sc = V.findScale(n); if (sc && !pool.some(p => p.sc.mask === sc.mask)) pool.push({ sc, w: blues ? wb : wi }); }
+    const keyRoot = song.key ? song.key.root : null;
+    const C = []; for (const p of pool) for (let r = 0; r < 12; r++) C.push({ r, sc: p.sc, mask: p.sc.mask, w: p.w });
+    const NS = C.length;
+    // początek sekcji dla każdego taktu
+    const secStart = []; let st = 0; song.bars.forEach((b, i) => { if (i && b.section) st = i; secStart[i] = st; });
+    function cost(e, c) {
+      const ch = e.chord; let k = 0; const inS = pc => !!(c.mask & (1 << (((pc - c.r) % 12 + 12) % 12)));
+      const chordPcs = new Set();
+      for (const [o, role] of ch.tones) {
+        const pc = (ch.root + o) % 12; chordPcs.add(pc);
+        if (inS(pc)) continue;
+        if (role === 'B') { k += 1; continue; }
+        if (blues && role === '3' && o === 4 && inS(ch.root + 3)) { k += 0.4; continue; } // blue note: b3 nad dur
+        k += MISS[role] != null ? MISS[role] : 1.5;
+      }
+      if (!blues) for (let i = 0; i < 12; i++) { // dźwięk półtonu nad dźwiękiem akordu = dźwięk unikany
+        const pc = (c.r + i) % 12; if (!(c.mask & (1 << i)) || chordPcs.has(pc)) continue;
+        const below = ((pc + 11 - ch.root) % 12);
+        if (!chordPcs.has((pc + 11) % 12)) continue;
+        k += below === 0 ? 1.5 : below === 4 ? 0.4 : below === 10 ? 1.0 : below === 7 ? (ch.flags && ch.flags.minor ? 0.2 : 0.6) : below === 3 ? 0 : 0.4;
+      }
+      k -= c.w;
+      const p5 = !!(c.mask & 128);
+      if (!p5) k += 0.6; // skala bez czystej kwinty od swojej toniki – tylko gdy akord tego wymaga
+      if (keyRoot != null && c.r === keyRoot && p5) k -= 0.9;
+      if (c.r === ch.root) k -= 0.35;
+      const bar = song.bars[e.bar]; const wt = Math.max(0.25, Math.min(2, e.durQ / (bar ? bar.lenQ : 4)));
+      return k * wt;
+    }
+    function change(e) {
+      if (e.startInBar > 1e-6) return 4;
+      const b = e.bar, s0 = secStart[b];
+      if (b > 0 && s0 === b) return 0.4;
+      const rel = b - s0;
+      return rel % 4 === 0 ? 1.0 : rel % 2 === 0 ? 1.8 : 2.8;
+    }
+    // Viterbi: przejście = ten sam stan za 0 albo najlepszy poprzedni + koszt zmiany
+    let prev = new Float64Array(NS); const back = [];
+    for (let j = 0; j < NS; j++) prev[j] = cost(evs[0], C[j]);
+    for (let i = 1; i < evs.length; i++) {
+      let bj = 0; for (let j = 1; j < NS; j++) if (prev[j] < prev[bj]) bj = j;
+      const ch = change(evs[i]); const cur = new Float64Array(NS); const bk = new Int32Array(NS);
+      for (let j = 0; j < NS; j++) {
+        const stay = prev[j], sw = prev[bj] + ch;
+        if (stay <= sw) { cur[j] = stay; bk[j] = j; } else { cur[j] = sw; bk[j] = bj; }
+        cur[j] += cost(evs[i], C[j]);
+      }
+      back.push(bk); prev = cur;
+    }
+    let j = 0; for (let k = 1; k < NS; k++) if (prev[k] < prev[j]) j = k;
+    const path = new Array(evs.length); path[evs.length - 1] = j;
+    for (let i = evs.length - 1; i > 0; i--) { j = back[i - 1][j]; path[i - 1] = j; }
+    const items = evs.map((e, i) => ({ ev: e, root: C[path[i]].r, mask: C[path[i]].mask, scale: C[path[i]].sc }));
+    const phrases = [];
+    for (const it of items) { const L = phrases[phrases.length - 1]; if (L && L.root === it.root && L.mask === it.mask) L.to = it.ev.bar; else phrases.push({ from: it.ev.bar, to: it.ev.bar, root: it.root, mask: it.mask, scale: it.scale }); }
+    return { blues, items, phrases };
+  }
+  G.SUGGEST = { forChord, common, targetText, plan, detectBlues };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ===== Analiza podkładu: tempo, beat, takty, metrum, tonacja, akordy, części ===== */
@@ -3100,7 +3219,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '2.5';
+  const VERSION = '2.6';
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
@@ -3338,7 +3457,7 @@ odliczanie: 1
         const cell = state ? state[s][f] : null;
         const pv = previewSet && previewSet.has(s * 100 + f);
         const fg = cell && (S.fingerColors || cell.solo) && cell.finger != null ? cell.finger : null;
-        const k = cell ? cell.cls + cell.role + pv + S.labels + shift + flat + (cell.grip ? 'g' : '') + '|' + fg + (cell.dim ? 'd' : '') + (cell.next ? 'n' : '') + (cell.sel ? 's' : '') + S.colors['f' + fg] : (pv ? 'pv' : '');
+        const k = cell ? cell.cls + cell.role + pv + S.labels + shift + flat + (cell.grip ? 'g' : '') + '|' + fg + (cell.dim ? 'd' : '') + (cell.full ? 'F' : '') + (cell.next ? 'n' : '') + (cell.sel ? 's' : '') + S.colors['f' + fg] : (pv ? 'pv' : '');
         if (k === c.key) continue; c.key = k;
         if (!cell && !pv) { c.g.style.display = 'none'; continue; }
         c.g.style.display = '';
@@ -3351,14 +3470,14 @@ odliczanie: 1
           const isScale = cell.cls === 'scale' || cell.cls === 'chordNeg';
           const col = fg != null ? S.colors['f' + fg] : ROLE_COLOR(cell.cls);
           c.dot.setAttribute('fill', col);
-          c.dot.setAttribute('opacity', cell.next ? '.38' : cell.dim ? '.16' : fg != null ? (isScale && cell.cls !== 'root' && !cell.chordTone ? '.62' : '1') : isScale ? '.38' : '1');
+          c.dot.setAttribute('opacity', cell.next ? '.38' : cell.dim ? '.16' : fg != null ? (isScale && cell.cls !== 'root' && !cell.full ? '.62' : '1') : cell.full ? '.85' : isScale ? '.38' : '1');
           // tonika w kolorach palców: biała obwódka
           const rootMark = fg != null && !cell.dim && (cell.cls === 'root' || cell.role === 'R' || cell.role === '1');
           c.dot.setAttribute('stroke', cell.sel ? '#fff' : rootMark ? '#fff' : 'none'); c.dot.setAttribute('stroke-width', cell.sel ? '4' : rootMark ? '3' : '0');
           c.ring.style.display = pv || cell.sel ? '' : 'none';
           c.dot.style.display = '';
           const lightBg = fg != null ? (fg === 0 || fg === 2 || fg === 4) : (cell.cls === 'third' || cell.cls === 'tension');
-          c.txt.setAttribute('fill', cell.dim ? '#cfd6e6' : (fg == null && isScale) ? '#eef2ff' : lightBg ? '#111' : '#fff');
+          c.txt.setAttribute('fill', cell.dim ? '#cfd6e6' : (fg == null && cell.full) ? '#111' : (fg == null && isScale) ? '#eef2ff' : lightBg ? '#111' : '#fff');
           c.txt.setAttribute('opacity', cell.dim ? '.5' : '1');
           c.txt.textContent = S.labels === 'none' ? '' : S.labels === 'finger' ? (fg == null ? '' : fg === 0 ? 'o' : String(fg)) : S.labels === 'iv' ? prettyAcc(cell.role === 'R' ? '1' : cell.role) : prettyAcc(V.noteName(cell.pc - shift, flat));
         } else { c.dot.style.display = 'none'; c.txt.textContent = ''; }
@@ -3474,24 +3593,26 @@ odliczanie: 1
         if (AU.songId === id) { this.buffer = buf; this.bufFor = id; }
       } catch (e) { /* zostaje element <audio> */ }
     },
-    start(ft, rate) {
+    start(ft, rate, when) {
       this.stop(); A.ensure();
+      when = Math.max(A.ctx.currentTime + 0.06, when || 0);
       if (Math.abs(rate - 1) < 0.001 && this.buffer && this.bufFor === AU.songId) {
         const s2 = A.ctx.createBufferSource(); s2.buffer = this.buffer; s2.connect(A.gFile);
-        const t = A.ctx.currentTime + 0.06; s2.start(t, Math.max(0, ft));
+        const t = when; s2.start(t, Math.max(0, ft));
         s2.onended = () => { if (this.src === s2) this.ended = true; };
         this.src = s2; this.kind = 'buf'; this.t0 = t; this.off0 = Math.max(0, ft); this.rate = 1; this.ended = false;
         return t;
       }
       ensureEl(); A.el.currentTime = Math.max(0, ft); A.el.playbackRate = rate; setPreserve(A.el);
-      A.el.play().catch(e => toast('Nie mogę odtworzyć pliku: ' + e.message));
+      const go = () => { if (this.kind === 'el' && this.pending === go) { this.pending = null; A.el.play().catch(e => toast('Nie mogę odtworzyć pliku: ' + e.message)); } };
+      this.pending = go; setTimeout(go, Math.max(0, (when - A.ctx.currentTime) * 1000));
       this.kind = 'el'; this.rate = rate; this.ended = false;
-      return A.ctx.currentTime;
+      return when;
     },
     stop() {
       if (this.src) { const s2 = this.src; this.src = null; s2.onended = null; try { s2.stop(); } catch (e) { } }
       if (A.el && !A.el.paused) A.el.pause();
-      this.kind = null;
+      this.kind = null; this.pending = null;
     },
     time() { return this.kind === 'buf' ? this.off0 + Math.max(0, A.ctx.currentTime - this.t0) : (A.el ? A.el.currentTime : 0); },
     paused() { return this.kind === 'buf' ? false : (!A.el || A.el.paused); },
@@ -3580,19 +3701,22 @@ odliczanie: 1
     P.pos = b.startSec;
     if (train) P.factor = (+$('#speed').value) / 100;
     const useCount = train ? S.countInT : S.countIn;
-    const ci = (P.fileMode() || !useCount) ? 0 : Math.max(1, P.song.countIn || 1);
+    // z podkładem: zawsze 2 takty odliczania klikiem w tempie i metrum utworu, potem rusza nagranie
+    const ci = P.fileMode() ? 2 : !useCount ? 0 : Math.max(1, P.song.countIn || 1);
     P.ciBars = ci; P.ciBar = bi; P.ciUntil = ci ? b.startSec : null;
     const startN = b.startSec - (ci ? ci * b.lenSec : 0);
     const t0 = A.ctx.currentTime + 0.08;
     if (P.fileMode()) {
       const off = P.song.offset || 0;
+      const rate = train ? P.factor : 1;
       const ft = Math.max(0, b.startSec + off);
-      const ts = FP.start(ft, train ? P.factor : 1);
-      P.anchorN = ft - off; P.anchorT = ts;
+      const lead = (ft - off - startN) / rate;
+      const ts = FP.start(ft, rate, t0 + lead);
+      P.anchorN = ft - off; P.anchorT = ts; // oś zakotwiczona w chwili startu nagrania; odliczanie przed nią
     } else {
       P.anchorN = startN; P.anchorT = t0;
     }
-    P.schedN = P.anchorN - 0.001;
+    P.schedN = startN - 0.001;
     P.running = true;
     loopRuns = 0;
     $('#btnPlay').textContent = 'Stop'; $('#btnPlay').classList.remove('primary');
@@ -3633,7 +3757,7 @@ odliczanie: 1
     // korekta dryfu pliku audio
     if (P.fileMode()) {
       const off = P.song.offset || 0;
-      if (FP.kind === 'el') {
+      if (FP.kind === 'el' && !FP.pending && !(P.ciUntil != null && P.now() < P.ciUntil)) {
         const fileN = A.el.currentTime - off;
         const n = P.now();
         if (Math.abs(fileN - n) > 0.06 || A.el.paused) { P.anchorN = fileN; P.anchorT = A.ctx.currentTime; if (P.schedN > fileN + LOOK || P.schedN < fileN - 0.5) P.schedN = fileN - 0.01; }
@@ -3838,6 +3962,11 @@ odliczanie: 1
       const extra = (S.extraUuids || '').split(/[,\s]+/).map(x => x.trim().toLowerCase()).filter(Boolean).map(x => /^[0-9a-f]{4}$/.test(x) ? parseInt(x, 16) : x);
       const all = this.showAll;
       this.L('tx', all ? 'Otwieram listę wszystkich urządzeń Bluetooth…' : 'Szukam nakładki VNOTE…');
+      const WIN = /Windows/i.test(navigator.userAgent);
+      try {
+        if (navigator.bluetooth.getAvailability && !(await navigator.bluetooth.getAvailability()))
+          this.L('er', 'Przeglądarka nie widzi włączonego adaptera Bluetooth.' + (WIN ? ' Sprawdź, czy Bluetooth jest włączony w Windows i czy adapter obsługuje Bluetooth LE (Menedżer urządzeń → „Microsoft Bluetooth LE Enumerator”).' : ''));
+      } catch (e) { }
       const hint = setTimeout(() => this.L('er', 'Lista urządzeń się nie pojawiła. Ta przeglądarka prawdopodobnie nie obsługuje Bluetooth na stronach – użyj Edge/Chrome na PC albo Bluefy na iPhonie.'), 12000);
       // kolejne próby: od najprostszych opcji (niektóre przeglądarki odrzucają nietypowe listy usług)
       const attempts = all
@@ -3858,7 +3987,11 @@ odliczanie: 1
         }
       }
       clearTimeout(hint);
-      if (!this.dev) { this.L('er', 'Nie połączono. Zamknij nRF Connect i Visual Note, wyłącz i włącz nakładkę, spróbuj ponownie.'); return; }
+      if (!this.dev) {
+        this.L('er', 'Nie połączono. Zamknij nRF Connect i Visual Note, wyłącz i włącz nakładkę, spróbuj ponownie.' + (WIN ? ' Na PC: nakładka nie może być połączona z iPhonem i nie może być sparowana w Ustawieniach Windows – szczegóły w „PC z Windows nie widzi nakładki?”.' : ''));
+        if (WIN && $('#bleWinHelp')) $('#bleWinHelp').open = true;
+        return;
+      }
       this.dev.addEventListener('gattserverdisconnected', () => { this.L('er', 'Rozłączono'); this.server = null; bleUi(); });
       this.L('tx', 'Łączę z: ' + (this.dev.name || '(bez nazwy)') + ' id ' + this.dev.id);
       try { this.server = await this.dev.gatt.connect(); this.L('rx', 'Połączono'); }
@@ -4096,6 +4229,7 @@ odliczanie: 1
         rgb = hexToRgb(fg != null ? S.colors['f' + fg] : ROLE_COLOR(cell.cls));
         if (cell.next) k = br * 0.22;
         else if (cell.dim) k = br * 0.08;
+        else if (cell.full) k = br * 0.85;
         else if (fg == null && (cell.cls === 'scale' || cell.cls === 'chordNeg')) k = br * S.scaleDim / 100;
         else if (fg != null && cell.cls === 'scale') k = br * Math.max(S.scaleDim, 45) / 100;
       }
@@ -4432,7 +4566,7 @@ odliczanie: 1
     $$('.view').forEach(x => x.hidden = x.id !== 'view-' + v);
     $$('nav.tabs button').forEach(b => b.setAttribute('aria-selected', String(b.dataset.view === v && (v !== 'play' || b.dataset.mode === (mode || P.mode)))));
     if (v === 'play' && mode) setMode(mode);
-    if (v === 'play') { lastKey = ''; lastBeatKey = ''; lastBar = -2; }
+    if (v === 'play') { lastKey = ''; lastBeatKey = ''; lastBar = -2; if (!P.running) { P.manual = null; lastLedKey = ''; } }
     if (v === 'scales') renderScaleDetail();
     document.querySelector('main').classList.toggle('wide', v === 'songs');
     if (v === 'songs') renderSongList();
@@ -4479,6 +4613,20 @@ odliczanie: 1
       el.onclick = e => e.preventDefault();
     };
     hold($('#tDown'), -1); hold($('#tUp'), 1);
+    $('#posMeter').onclick = () => {
+      if (!P.song) return;
+      const s2 = songById(P.songId); if (!s2) return;
+      const b = P.song.bars[Math.max(0, V.barAtSec(P.song, Math.max(0, P.now())))];
+      const cur = b ? b.num + '/' + b.den : '4/4';
+      const v = prompt('Metrum utworu (np. 4/4, 3/4, 6/8, 12/8, 7/8 2+2+3, 5/4):', cur);
+      if (v == null || !v.trim()) return;
+      try { V.parseMeter(v); } catch (e) { toast(e.message); return; }
+      if (P.song.mapped > 1 && !confirm('Utwór ma mapę taktów z nagrania. Zmiana metrum zmieni długość taktów i mapa może przestać pasować. Zmienić?')) return;
+      s2.text = V.setDirective(s2.text, 'metrum', v.trim(), 'metrum'); saveSongs();
+      const run = P.running, t = P.now(); loadSong(P.songId, true); if (run) seek(t);
+      if (editId === P.songId) $('#editor').value = s2.text;
+      lastKey = ''; toast('Metrum utworu: ' + v.trim());
+    };
     $('#tempoVal').title = 'Dotknij, żeby wpisać tempo';
     $('#tempoVal').style.cursor = 'pointer';
     $('#tempoVal').onclick = () => {
@@ -4597,7 +4745,7 @@ odliczanie: 1
   /* ================= WIDOK: SKALE ================= */
   const SC = { root: 0, mask: V.findScale('dorian').mask, limit: 250, deg: 3, chordShown: null };
   // biblioteka skal jak w Scale Teacher: wyszukiwarka, kategorie, karty
-  const SC_CATS = [['all', 'Wszystkie'], ['major', 'Dur'], ['minor', 'Moll'], ['pentatonic', 'Pentatoniki'], ['modes', 'Mody'], ['harmonic', 'Harmoniczne'], ['melodic', 'Melodyczne'], ['blues', 'Bluesowe'], ['exotic', 'Egzotyczne'], ['jazz', 'Jazzowe'], ['custom', 'Własne']];
+  const SC_CATS = [['all', 'Wszystkie'], ['major', 'Dur'], ['minor', 'Moll'], ['pentatonic', 'Pentatoniki'], ['modes', 'Mody'], ['harmonic', 'Harmoniczne'], ['melodic', 'Melodyczne'], ['blues', 'Bluesowe'], ['exotic', 'Egzotyczne'], ['jazz', 'Jazzowe'], ['pentmod', 'Pentatoniki modalne'], ['custom', 'Własne']];
   function libraryItems() {
     const out = V.CATALOG.map((c, i) => ({ key: 'c' + i, cat: c.cat, tag: c.cat, pl: c.pl, en: c.en, mask: c.mask, deg: c.deg, desc: c.desc }));
     customScales.forEach((c, i) => out.push({ key: 'u' + i, cat: 'custom', tag: 'własna', pl: c.name, en: '', mask: c.mask, deg: V.formula(c.mask), desc: 'Twoja skala.', custom: i }));
@@ -4617,6 +4765,15 @@ odliczanie: 1
     }).join('') || '<p class="small muted">Brak skal dla tego wyszukiwania.</p>';
     $('#scCount').textContent = '';
   }
+  // zakładka Skale: każda zmiana od razu na diodach (gdy utwór nie gra)
+  function scaleLeds() {
+    if (P.running || $('#view-scales').hidden || !SC.state) return;
+    P.manual = { key: 's' + SC.root + ':' + SC.mask + ':' + (SC.chordShown ? SC.chordShown.symbol : '') + ':' + (SC.pos && SC.pos.size ? V.posString(SC.pos) : '') + S.fingerColors + S.show, state: SC.state }; lastLedKey = '';
+  }
+  function chordLeds() {
+    if (P.running || !SC.exState) return;
+    P.manual = { key: 'v' + SC.exSym + SC.vIdx, state: SC.exState }; lastLedKey = '';
+  }
   function renderScaleDetail() {
     const named = V.BY_MASK.get(SC.mask);
     const s = V.scaleByMask(SC.mask);
@@ -4631,7 +4788,7 @@ odliczanie: 1
     const state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: SC.mask, scaleRoot: SC.root, show: NEG ? (ch ? 'negChord' : 'neg') : (ch ? 'both' : 'scale'), fretMin: 0, fretMax: 99, capo: P.capo || 0, cells: win, dimOut: true });
     $('#scPos').innerHTML = posPickerHtml(SC.mask, SC.root, SC.pos, 'data-pos', flat);
     fbScale.update(state, null, flat);
-    SC.state = state;
+    SC.state = state; scaleLeds();
     // stopnie
     const iv = V.intervalsFromMask(SC.mask);
     $('#degPanel').hidden = iv.length !== 7;
@@ -4689,14 +4846,8 @@ odliczanie: 1
   function bindScales() {
     SC.pos = new Set();
     $('#scPos').onclick = e => posPickerClick(e, SC.pos, 'data-pos', ns => { SC.pos = ns || new Set(); renderScaleDetail(); }, renderScaleDetail);
-    $('#chvPrev').onclick = () => { SC.vIdx--; renderExVoicing(); };
-    $('#chvNext').onclick = () => { SC.vIdx++; renderExVoicing(); };
-    $('#chvShow').onclick = () => {
-      if (P.running) { toast('Zatrzymaj utwór, aby pokazać chwyt na diodach'); return; }
-      if (!SC.exState) return;
-      P.manual = { key: 'v' + SC.exSym + SC.vIdx, state: SC.exState }; lastLedKey = '';
-      toast(B.server && S.enc.ready ? 'Wysłano na gryf' : 'Pokażę na diodach po połączeniu i ustawieniu sterownika');
-    };
+    $('#chvPrev').onclick = () => { SC.vIdx--; renderExVoicing(); chordLeds(); };
+    $('#chvNext').onclick = () => { SC.vIdx++; renderExVoicing(); chordLeds(); };
     $('#scRoots').innerHTML = V.SHARP.map((n, i) => `<button data-root="${i}" aria-pressed="${i === SC.root}">${esc(prettyAcc(V.FLAT_ROOTS.has(i) && i !== 6 ? V.FLAT[i] : n))}</button>`).join('');
     $('#scRoots').onclick = e => { const b = e.target.closest('[data-root]'); if (!b) return; SC.root = +b.dataset.root; SC.chordShown = null; $$('#scRoots button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderScaleDetail(); };
     $('#scCats').onclick = e => { const b = e.target.closest('[data-cat]'); if (!b) return; SC.cat = b.dataset.cat; renderScaleList(); };
@@ -4709,12 +4860,6 @@ odliczanie: 1
       if (window.innerWidth < 900) $('#scName').scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
     $('#scIvs').onclick = e => { const b = e.target.closest('[data-iv]'); if (!b) return; const i = +b.dataset.iv; if (i === 0) return; SC.mask ^= (1 << i); SC.chordShown = null; renderScaleDetail(); };
-    $('#scShow').onclick = () => {
-      if (P.running) { toast('Zatrzymaj utwór, aby pokazać skalę na diodach'); return; }
-      P.manual = { key: SC.root + ':' + SC.mask + ':' + (SC.chordShown ? SC.chordShown.symbol : ''), state: SC.state };
-      lastLedKey = '';
-      toast(B.server && S.enc.ready ? 'Wysłano na gryf' : 'Pokażę na diodach po połączeniu i ustawieniu sterownika');
-    };
     $('#scCopy').onclick = () => copyText(scaleToken() + (SC.pos && SC.pos.size ? '~' + V.posString(SC.pos) : ''));
     $('#scSave').onclick = () => {
       const name = $('#scCustomName').value.trim(); if (!name) { toast('Wpisz nazwę skali'); return; }
@@ -4725,7 +4870,7 @@ odliczanie: 1
     };
     $$('[data-deg]').forEach(b => b.onclick = () => { SC.deg = +b.dataset.deg; renderScaleDetail(); });
     $('#scDegrees').onclick = e => { const b = e.target.closest('[data-chord]'); if (!b || !b.dataset.chord) return; try { SC.chordShown = V.parseChord(b.dataset.chord); } catch (err) { SC.chordShown = null; } renderScaleDetail(); };
-    $('#chGo').onclick = renderChordExplorer; $('#chIn').onkeydown = e => { if (e.key === 'Enter') renderChordExplorer(); };
+    $('#chGo').onclick = () => { renderChordExplorer(); chordLeds(); }; $('#chIn').onkeydown = e => { if (e.key === 'Enter') { renderChordExplorer(); chordLeds(); } };
     $('#chSug').onclick = e => {
       const b = e.target.closest('[data-smask]'); if (!b) return;
       SC.root = +b.dataset.sroot; SC.mask = +b.dataset.smask; SC.curKey = null;
@@ -4993,7 +5138,7 @@ odliczanie: 1
   }
   function headDirective(key) {
     const lines = editorText().replace(/\r/g, '').split('\n');
-    const keys = { bpm: ['bpm', 'tempo'] }[key] || [key];
+    const keys = { bpm: ['bpm', 'tempo'], metrum: ['metrum', 'meter', 'time', 'takt'] }[key] || [key];
     for (const l of lines) { if (l.includes('|') || /^\s*\[/.test(l)) break; const m = /^\s*([^:=|#]+?)\s*[:=]\s*(.+?)\s*(#.*)?$/.exec(l); if (m && keys.includes(V.norm(m[1]))) return m[2]; }
     return '';
   }
@@ -5003,6 +5148,7 @@ odliczanie: 1
     set('#stTitle', sg.title === 'Bez tytułu' && !/^\s*(tytu[łl]|title)\s*:/mi.test(editorText()) ? '' : sg.title);
     set('#stKey', sg.key ? sg.key.text : '');
     set('#stBpm', headDirective('bpm'));
+    set('#stMeter', headDirective('metrum'));
     if (!$('#stCapo').options.length) $('#stCapo').innerHTML = '<option value="">jak w ustawieniach</option>' + Array.from({ length: 13 }, (_, i) => `<option value="${i}">${i ? i + '. próg' : 'bez kapodastra'}</option>`).join('');
     set('#stCapo', sg.capo != null ? String(sg.capo) : '');
     set('#stCapoMode', sg.capoMode === 'shapes' ? 'chwyty' : sg.capoMode === 'concert' ? 'brzmiące' : '');
@@ -5059,6 +5205,9 @@ odliczanie: 1
     const isNc = !ch || ch.nc;
     let h = `<div class="row"><div class="insp-title grow">${prettyChord(isNc ? 'N.C.' : ch.symbol)}</div><span class="small muted mono">takt ${ev0.bar + 1} · od ${Math.round(posQ / unit * 100) / 100 + 1}. ${b.den === 4 ? 'ćwierćnuty' : 'ósemki'} · ${fmtDur(ev.durQ)} (${Math.round(ev.durQ * 1000) / 1000} ćw.)</span></div>`;
     if (notes.length) h += `<div class="note-box">${notes.map(esc).join('<br>')}</div>`;
+    if (ST.scopeFor !== ST.sel) { ST.scope = 'all'; ST.scopeFor = ST.sel; }
+    const twins = twinsOf(ev);
+    if (twins.length) h += `<div class="row scope-row"><span class="small muted">Zmiana obejmie:</span><div class="seg wrap" role="group" aria-label="Zakres zmiany"><button data-scope="all" aria-pressed="${ST.scope !== 'one'}">wszystkie identyczne fragmenty (${twins.length + 1}×: takty ${[ev, ...twins].map(e => e.bar + 1).sort((a, b) => a - b).join(', ')})</button><button data-scope="one" aria-pressed="${ST.scope === 'one'}">tylko ten takt / tę sekwencję</button></div></div>`;
     h += `<div class="row">
       <label class="f grow">Akord <input type="text" id="inChord" value="${esc(tk.sym)}"></label>
       <label class="f" style="width:120px">Długość <input type="text" id="inDur" value="${esc(tk.durStr || '')}" placeholder="auto"></label>
@@ -5177,6 +5326,39 @@ odliczanie: 1
       box.hidden = true; toast('Ustawiono ' + prettyAcc(V.noteName(r.root, flat) + ' ' + r.scale.pl) + ' na ' + edits.length + ' akordach');
     };
   }
+  // plan skal frazami (2–4 takty): jedna skala modalna na sekwencję, w bluesie pentatoniki modalne
+  function planScales(quiet) {
+    const sg = ST.song; if (!sg || !sg.events.length) return;
+    const res = SUGGEST.plan(sg);
+    const flat = !!(sg.key && sg.key.flat);
+    const edits = [], seenLoc = new Set(), bySig = new Map(), sigCache = new Map();
+    for (const it of res.items) {
+      const ev = it.ev;
+      if (!ev.loc || !ev.tk || ev.viaPercent || ev.rep) continue;
+      const lk = ev.loc.ln + ':' + ev.loc.cell + ':' + ev.loc.tok; if (seenLoc.has(lk)) continue; seenLoc.add(lk);
+      // identyczne fragmenty dostają tę samą skalę co pierwszy z nich
+      if (!sigCache.has(ev.loc.ln)) sigCache.set(ev.loc.ln, lineSig(ev.loc.ln));
+      const sk = sigCache.get(ev.loc.ln) + '#' + ev.loc.cell + '.' + ev.loc.tok;
+      if (bySig.has(sk)) { const f = bySig.get(sk); it.root = f.root; it.mask = f.mask; it.scale = f.scale; } else bySig.set(sk, it);
+      const slug = scaleSlug(it.scale);
+      const rootName = V.noteName(it.root, spellFlat(it.root, it.mask, flat));
+      edits.push({ ...ev.loc, text: V.composeToken({ ...ev.tk, scaleSpec: it.root === ev.chord.root ? slug : rootName + ':' + slug }) });
+    }
+    if (!edits.length) return;
+    res.phrases = [];
+    for (const it of res.items) { const L = res.phrases[res.phrases.length - 1]; if (L && L.root === it.root && L.mask === it.mask) L.to = it.ev.bar; else res.phrases.push({ from: it.ev.bar, to: it.ev.bar, root: it.root, mask: it.mask, scale: it.scale }); }
+    commitText(V.rewriteTokens(editorText(), edits));
+    const box = $('#stCommon');
+    if (box && !quiet) {
+      box.hidden = false;
+      box.innerHTML = `<p class="small">${res.blues ? '<b>Blues</b> – skale oparte na pentatonikach z dźwiękiem charakterystycznym modusu. ' : ''}Jedna skala na frazę (2–4 takty), zmiana tylko na granicy fraz i sekcji:</p>` +
+        res.phrases.map(p => `<div class="cmrow"><div class="grow"><b>takty ${p.from + 1}${p.to > p.from ? '–' + (p.to + 1) : ''}</b>: ${esc(prettyAcc(V.noteName(p.root, spellFlat(p.root, p.mask, flat)) + ' ' + p.scale.pl))} <span class="small muted mono">${esc(prettyAcc(V.formula(p.mask)))}</span></div></div>`).join('') +
+        '<p class="small muted">Każdy akord możesz potem zmienić w panelu akordu (zmiana obejmie też identyczne fragmenty).</p><button class="btn" id="cmClose">Zamknij</button>';
+      $('#cmClose').onclick = () => box.hidden = true;
+      box.onclick = null;
+    }
+    toast('Skale ułożone frazami: ' + res.phrases.length + ' ' + (res.phrases.length === 1 ? 'skala' : 'odcinków') + (res.blues ? ' (blues)' : ''));
+  }
   // skale do wyboru: katalog (bez powtórzeń) + własne
   function catalogPool() {
     const seen = new Set(), out = [];
@@ -5236,13 +5418,37 @@ odliczanie: 1
     fbStudio.fb.update(state, null, fl, shift);
     ST.preview = { state, v, ch };
   }
+  // identyczne fragmenty: ten sam wiersz zapisu (fraza) z tymi samymi akordami i długościami -> ten sam akord w nim
+  const locKey = l => l.ln + ':' + l.cell + ':' + l.tok;
+  function lineSig(ln) {
+    const parts = [];
+    for (const e of ST.song.events) if (e.loc && e.loc.ln === ln && !e.tied && !e.rep) parts.push(e.loc.cell + '.' + e.loc.tok + '=' + (e.chord.nc ? 'NC' : e.chord.symbol) + '/' + Math.round(e.durQ * 1000) + '@' + Math.round(e.startInBar * 1000));
+    return parts.join(' ');
+  }
+  function twinsOf(ev) {
+    if (!ev || !ev.loc || ev.viaPercent) return [];
+    const sig = lineSig(ev.loc.ln); const sigs = new Map(); const seen = new Set([locKey(ev.loc)]), out = [];
+    for (const e of ST.song.events) {
+      if (!e.loc || e.tied || e.viaPercent || e.loc.ln === ev.loc.ln || e.loc.cell !== ev.loc.cell || e.loc.tok !== ev.loc.tok) continue;
+      const k = locKey(e.loc); if (seen.has(k)) continue; seen.add(k);
+      if (!sigs.has(e.loc.ln)) sigs.set(e.loc.ln, lineSig(e.loc.ln));
+      if (sigs.get(e.loc.ln) === sig) out.push(e);
+    }
+    return out;
+  }
+  // tk: obiekt (nowe pola tokenu) albo funkcja tk => token/tekst; zmienione pola przenoszę na identyczne fragmenty
   function tokenEdit(ev, tk, dropAbsorbed) {
-    const edits = [{ ...ev.loc, text: typeof tk === 'string' ? tk : V.composeToken(tk) }];
-    if (dropAbsorbed) for (const l of ev.absorbed || []) edits.push({ ...l, text: null });
+    const mk = t => typeof tk === 'function' ? tk(t) : typeof tk === 'string' ? tk : V.composeToken({ ...t, ...Object.fromEntries(Object.keys(tk).filter(k => tk[k] !== ev.tk[k]).map(k => [k, tk[k]])) });
+    const one = (e, text) => { const ed = [{ ...e.loc, text }]; if (dropAbsorbed) for (const l of e.absorbed || []) ed.push({ ...l, text: null }); return ed; };
+    let edits = one(ev, typeof tk === 'object' ? V.composeToken(tk) : mk(ev.tk));
+    const tw = ST.scope === 'one' ? [] : twinsOf(ev);
+    for (const e of tw) edits = edits.concat(one(e, mk(e.tk)));
     commitText(V.rewriteTokens(editorText(), edits));
+    if (tw.length) toast('Zmieniono też w ' + tw.length + ' identycznych fragmentach');
   }
   function bindInspector(ev) {
     const tk = ev.tk;
+    $$('[data-scope]').forEach(b => b.onclick = () => { ST.scope = b.dataset.scope; $$('[data-scope]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); });
     $('#inApply').onclick = () => {
       const sym = $('#inChord').value.trim(); const du = $('#inDur').value.trim();
       if (!sym) { toast('Wpisz akord albo N.C.'); return; }
@@ -5255,11 +5461,10 @@ odliczanie: 1
     $('#inChord').onkeydown = $('#inDur').onkeydown = e => { if (e.key === 'Enter') $('#inApply').click(); };
     $('#inSplit').onclick = () => {
       const half = fmtDur(ev.durQ / 2);
-      const a = V.composeToken({ ...tk, durStr: half }), b2 = V.composeToken({ ...tk, durStr: half });
-      tokenEdit(ev, a + ' ' + b2, true);
+      tokenEdit(ev, t => { const a = V.composeToken({ ...t, durStr: half }); return a + ' ' + a; }, true);
       toast('Podzielono. Zmień akord w drugiej połowie.');
     };
-    $('#inRemove').onclick = () => tokenEdit(ev, '-' + (tk.durStr ? ':' + tk.durStr : ''), false);
+    $('#inRemove').onclick = () => tokenEdit(ev, t => '-' + (t.durStr ? ':' + t.durStr : ''), false);
     if (!$('#inScales')) return;
     $$('[data-sm]').forEach(b => b.onclick = () => {
       const m = b.dataset.sm;
@@ -5668,6 +5873,7 @@ odliczanie: 1
         m.offset = m.barTimes[0];
         m.unsure = res.bars.map((b2, i) => b2.conf < 0.45 ? i : -1).filter(i => i >= 0);
         commitText(analysisText());
+        try { ST.song = V.applyTiming(V.parseSong(editorText()), { barTimes: m.barTimes, offset: m.offset }); planScales(true); } catch (err) { console.warn(err); }
         AN.res = null; box.innerHTML = '';
         saveSongs(); if (P.songId === m.id) loadSong(m.id, true);
         renderStudio();
@@ -5901,6 +6107,11 @@ odliczanie: 1
   function bindStudio() {
     bindSolo();
     $('#stCommonBtn').onclick = renderCommon;
+    $('#stPlanBtn').onclick = () => {
+      const own = ST.song && ST.song.events.some(e => e.tk && e.tk.scaleSpec);
+      if (own && !confirm('Ułożyć skale frazami od nowa? Zastąpi to skale ustawione przy akordach (pozycje i chwyty zostaną).')) return;
+      planScales(false);
+    };
     $('#stAnalyze').onclick = () => { AN.opts = {}; runAnalysis(); };
     // nagłówek utworu
     const dir = (id, key, label, check) => $(id).onchange = e => {
@@ -5911,6 +6122,7 @@ odliczanie: 1
     dir('#stTitle', 'tytul', 'tytuł');
     dir('#stKey', 'tonacja', 'tonacja', v => !!V.parseKey(v));
     dir('#stBpm', 'bpm', 'bpm', v => V.parseTempo(v) > 0);
+    dir('#stMeter', 'metrum', 'metrum', v => !!V.parseMeter(v));
     dir('#stCapo', 'capo', 'capo');
     dir('#stCapoMode', 'akordy', 'akordy');
     // siatka
