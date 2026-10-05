@@ -299,12 +299,23 @@ main.wide { max-width: 1680px; }
 .scard .act{align-self:flex-start;font:600 .8rem var(--body);padding:6px 12px;border-radius:7px;border:1px solid var(--line)}
 .scard.cur .act{background:var(--accent);border-color:var(--accent);color:#111}
 .scard .del{color:var(--warn);font-size:.8rem;text-decoration:underline}
+.pos-nums .seg{flex-wrap:wrap}
+.pos-nums .seg button{min-width:44px;flex:1 0 44px}
+
+.sug{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow:auto}
+.sugh{margin:8px 2px 0;font-size:.74rem;letter-spacing:.07em;text-transform:uppercase}
+.sug-safe{color:#3fe05a}.sug-color{color:#6d8dff}.sug-pent{color:var(--accent)}.sug-bold{color:#ff6b6b}
+.sugit{display:flex;flex-direction:column;align-items:flex-start;gap:3px;text-align:left;padding:9px 11px;border:1px solid var(--line);border-radius:9px;background:var(--panel-2,#161b26);color:var(--text);cursor:pointer}
+.sugit.cur{border-color:var(--accent)}
+.sugit .why{font-size:.8rem;color:var(--mute);line-height:1.35}
+.sugit .tg{font-size:.78rem;color:var(--text);opacity:.85}
+.cmrow{display:flex;gap:10px;align-items:center;border-top:1px solid var(--line);padding-top:8px}
 
 </style>
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.2</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.3</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -503,7 +514,7 @@ main.wide { max-width: 1680px; }
       <h2>Skale i układy</h2>
       <div class="grid2">
         <div class="panel">
-          <h3>Tonik</h3>
+          <h3>Tonika</h3>
           <div class="roots" id="scRoots"></div>
           <h3>Biblioteka skal</h3>
           <input type="search" id="scSearch" placeholder="Szukaj skali…">
@@ -553,7 +564,10 @@ main.wide { max-width: 1680px; }
             </div>
             <div class="fb-wrap" id="fbChord"></div>
             <button class="btn" id="chvShow">Pokaż chwyt na diodach</button>
-            <div class="slist" id="chScales" style="max-height:260px"></div>
+            <h3>Podpowiedzi do solówki</h3>
+            <div class="sug" id="chSug"></div>
+            <details><summary class="small">Wszystkie skale z katalogu zawierające ten akord</summary>
+            <div class="slist" id="chScales" style="max-height:260px"></div></details>
           </div>
           <div class="panel">
             <h3>Własne akordy</h3>
@@ -643,8 +657,10 @@ main.wide { max-width: 1680px; }
           <div class="panel">
             <div class="row">
               <h3 class="grow">Takty</h3>
-              <span class="small muted">Kliknij akord, aby go edytować.</span>
+              <button class="btn" id="stCommonBtn">Jedna skala na cały utwór?</button>
             </div>
+            <span class="small muted">Kliknij akord, aby go edytować i zobaczyć podpowiedzi skal do solówki.</span>
+            <div class="impbox" id="stCommon" hidden></div>
             <div class="bargrid" id="stBars"></div>
             <div class="msgs" id="edMsgs"></div>
           </div>
@@ -743,7 +759,7 @@ akordy: chwyty     # albo: brzmiące
               <li><b>Myślnik</b> <span class="mono">-</span> przedłuża poprzedni akord o jedną część taktu.</li>
               <li><b>Zmiana metrum lub tempa</b> w dowolnym miejscu: osobny wiersz <span class="mono">metrum: 5/4</span> albo wewnątrz taktu <span class="mono">{5/4}</span>, <span class="mono">{bpm 140}</span>.</li>
               <li><b>Skala:</b> bez zapisu dobieram ją do akordu i tonacji. Własną dodasz po <span class="mono">@</span>: <span class="mono">@dorian</span>, <span class="mono">@E:phrygian-dominant</span>, <span class="mono">@akord</span> (same dźwięki akordu), <span class="mono">@tonacja</span>. Nazwy skopiujesz z zakładki Skale.</li>
-              <li><b>Pozycje skali:</b> po nazwie skali dopisz <span class="mono">~</span> i pozycje. Trzy systemy (można łączyć): <b>CAGED</b> <span class="mono">~C1</span>…<span class="mono">~C5</span> – odcinki gryfu 0–4, 2–6, 4–8, 7–11, 9–13 (na nakładce także oktawę wyżej, do 14. progu); <b>3NPS</b> <span class="mono">~N1</span>…<span class="mono">~N7</span> – 0–4, 2–6, 4–8, 5–9, 7–11, 9–13, 11–15; <b>od toniku</b> <span class="mono">~T1</span>…<span class="mono">~T5</span> od dźwięku skali na strunie E i <span class="mono">~T1A</span>…<span class="mono">~T5A</span> od tego samego dźwięku na strunie A. Przykład: <span class="mono">Dm@dorian~C2,N4</span>, <span class="mono">@~cały</span> = cały gryf. Dźwięki poza pozycją są przygaszone. W wybranych pozycjach kolory pokazują palce: 1 czerwony, 2 zielony, 3 niebieski, 4 żółty, struna pusta biała, tonik z białą obwódką.</li>
+              <li><b>Pozycje skali:</b> po nazwie skali dopisz <span class="mono">~</span> i pozycje. Trzy systemy (można łączyć): <b>CAGED</b> <span class="mono">~C1</span>…<span class="mono">~C5</span> – odcinki gryfu 0–4, 2–6, 4–8, 7–11, 9–13 (na nakładce także oktawę wyżej, do 14. progu); <b>3NPS</b> <span class="mono">~N1</span>…<span class="mono">~N7</span> – 0–4, 2–6, 4–8, 5–9, 7–11, 9–13, 11–15; <b>od toniki</b> <span class="mono">~T1</span>…<span class="mono">~T5</span> od dźwięku skali na strunie E i <span class="mono">~T1A</span>…<span class="mono">~T5A</span> od tego samego dźwięku na strunie A. Przykład: <span class="mono">Dm@dorian~C2,N4</span>, <span class="mono">@~cały</span> = cały gryf. Dźwięki poza pozycją są przygaszone. W wybranych pozycjach kolory pokazują palce: 1 czerwony, 2 zielony, 3 niebieski, 4 żółty, struna pusta biała, tonika z białą obwódką.</li>
 <li><b>Własne akordy:</b> w zakładce Skale zbuduj układ dźwięków i nadaj przyrostek (np. <span class="mono">mu</span>), potem w utworze piszesz <span class="mono">Cmu</span>, <span class="mono">F#mu/A</span>. Własne skale i akordy jadą razem z pakietem .gryf na iPhone'a.</li>
 <li><b>Partia solo:</b> w Pracowni, w panelu „Partia solo”, wybierz takt, wartość rytmiczną i palec, a potem dotykaj gryfu – dźwięki dopisują się po kolei. Podczas gry aktualny dźwięk świeci pełnym kolorem palca, następny – przygaszony. Import: pliki Guitar Pro (.gp3, .gp4, .gp5, .gpx, .gp), MusicXML, tabulatury tekstowe (.txt) i PDF z tekstem (tabulatura tekstowa albo wydruk z Guitar Pro). Z PDF rytm jest przybliżony; skanów (zdjęć stron) nie da się odczytać. Import korzysta z bibliotek alphaTab (MPL-2.0) i pdf.js (Apache-2.0).</li>
               <li><b>Kapodaster:</b> <span class="mono">capo: 3</span>. Przy <span class="mono">akordy: chwyty</span> piszesz chwyty tak, jak bez kapodastra (G, C, D), a aplikacja wie, że brzmią wyżej. Przy <span class="mono">akordy: brzmiące</span> piszesz prawdziwe dźwięki, a aplikacja pokaże chwyty z kapodastrem.</li>
@@ -927,7 +943,7 @@ akordy: chwyty     # albo: brzmiące
   }
   function maskFromIntervals(iv) { let m = 0; for (const i of iv) m |= 1 << (((i % 12) + 12) % 12); return m; }
   function intervalsFromMask(mask) { const r = []; for (let i = 0; i < 12; i++) if (mask & (1 << i)) r.push(i); return r; }
-  function rotateMask(mask, by) { // nowy tonik = stary +by
+  function rotateMask(mask, by) { // nowa tonika = stara +by
     let r = 0; for (let i = 0; i < 12; i++) if (mask & (1 << i)) r |= 1 << (((i - by) % 12 + 12) % 12); return r;
   }
   function bitCount(m) { let c = 0; while (m) { c += m & 1; m >>= 1; } return c; }
@@ -1154,7 +1170,7 @@ akordy: chwyty     # albo: brzmiące
   // dla durowej i molowej modusy kościelne mają swoje nazwy w grupie „Mody”, ale skala jest ta sama
   function inCatalog(mask) { return CAT_NAME.has(mask); }
 
-  // wszystkie możliwe zbiory z tonikiem (2048)
+  // wszystkie możliwe zbiory z toniką (2048)
   const ALL_SETS = [];
   for (let m = 1; m < 4096; m += 2) {
     const named = BY_MASK.get(m);
@@ -1720,7 +1736,7 @@ akordy: chwyty     # albo: brzmiące
   //  N1–N7  3NPS  – 0–4, 2–6, 4–8, 5–9, 7–11, 9–13, 11–15
   //  T1–T5, T1A–T5A – od dźwięku skali na strunie E (6.) / A (5.): okno od progu startowego −1 do +3
   const POS_WIN = { C: [[0, 4], [2, 6], [4, 8], [7, 11], [9, 13]], N: [[0, 4], [2, 6], [4, 8], [5, 9], [7, 11], [9, 13], [11, 15]] };
-  const POS_SYS = { C: 'CAGED', N: '3NPS', T: 'od toniku' };
+  const POS_SYS = { C: 'CAGED', N: '3NPS', T: 'od toniki' };
   function parsePositions(str) {
     const t = String(str).trim().toUpperCase();
     if (!t || /^(ALL|CAL|CAŁ|CALY|CAŁY|WSZYSTK)/.test(t)) return 'all';
@@ -1731,7 +1747,7 @@ akordy: chwyty     # albo: brzmiące
       if ((m = /^N([1-7])$/.exec(it))) { set.add('N' + m[1]); continue; }
       if ((m = /^T?([1-5])(A|\/5)$/.exec(it))) { set.add('T' + m[1] + 'A'); continue; }
       if ((m = /^T([1-5])(E|\/6)?$/.exec(it))) { set.add('T' + m[1]); continue; }
-      throw new Error('Pozycje: wpisz np. ~C1 (CAGED), ~N3 (3NPS), ~T1A (od toniku na strunie A) albo ~cały');
+      throw new Error('Pozycje: wpisz np. ~C1 (CAGED), ~N3 (3NPS), ~T1A (od toniki na strunie A) albo ~cały');
     }
     if (!set.size) throw new Error('Pozycje: wpisz numery pozycji');
     return set;
@@ -1739,8 +1755,8 @@ akordy: chwyty     # albo: brzmiące
   const SYS_ORD = { C: 0, N: 1, T: 2 };
   const posSort = arr => arr.sort((a, b) => (SYS_ORD[a[0]] - SYS_ORD[b[0]]) || (parseInt(a.slice(1)) - parseInt(b.slice(1))) || (a.length - b.length));
   function posString(set) { return set && set !== 'all' && set.size ? posSort([...set]).join(',') : null; }
-  function posLabel(item) { return item[0] === 'C' ? 'CAGED ' + item.slice(1) : item[0] === 'N' ? '3NPS ' + item.slice(1) : 'od toniku ' + item.slice(1); }
-  // pięć dźwięków startowych: pentatonika skali od toniku (molowa: 1 b3 4 5 b7, durowa: 1 2 3 5 6), dopasowana do dźwięków skali
+  function posLabel(item) { return item[0] === 'C' ? 'CAGED ' + item.slice(1) : item[0] === 'N' ? '3NPS ' + item.slice(1) : 'od toniki ' + item.slice(1); }
+  // pięć dźwięków startowych: pentatonika skali od toniki (molowa: 1 b3 4 5 b7, durowa: 1 2 3 5 6), dopasowana do dźwięków skali
   function pentaBase(mask, root) {
     const has = i => !!(mask & (1 << i));
     const cand = has(3) && !has(4) ? [0, 3, 5, 7, 10] : [0, 2, 4, 7, 9];
@@ -1755,7 +1771,7 @@ akordy: chwyty     # albo: brzmiące
     for (const p of pcs) if (out.length < 5 && !out.includes(p)) out.push(p);
     return out.slice(0, 5);
   }
-  // pozycja „od toniku”: dźwięk startowy i progi na strunie startowej
+  // pozycja „od toniki”: dźwięk startowy i progi na strunie startowej
   function positionInfo(mask, root, tuning, item, maxFret) {
     if (item[0] !== 'T') return null;
     const n = parseInt(item.slice(1)), s0 = /A$/.test(item) ? 1 : 0;
@@ -2303,6 +2319,185 @@ akordy: chwyty     # albo: brzmiące
   G.TABIMP = { expandRepeats, autoFingers, trackInfo, gpToSolo, songTextFrom, parseTextTab, pdfTextLines, pdfGraphicTab, durTok };
 })(typeof window !== 'undefined' ? window : globalThis);
 
+/* ===== Podpowiedzi skal do solówki ===== */
+(function (G) {
+  'use strict';
+  const V = G.VF;
+  const TEN = { 0: '1', 1: 'b9', 2: '9', 3: '#9', 4: '3', 5: '11', 6: '#11', 7: '5', 8: 'b13', 9: '13', 10: 'b7', 11: '7' };
+  const pcsOf = (root, mask) => V.intervalsFromMask(mask).map(i => (root + i) % 12);
+  // nazwa interwału względem akordu (b3 w molowym, #9 w durowym; b5 w zmniejszonym, #11 w pozostałych)
+  function relName(rel, ci) {
+    if (rel === 3) return ci.has(4) ? '#9' : 'b3';
+    if (rel === 6) return ci.has(6) ? 'b5' : '#11';
+    if (rel === 8) return ci.has(8) ? '#5' : 'b13';
+    if (rel === 9) return ci.has(9) && !ci.has(10) && !ci.has(11) ? '6' : '13';
+    return TEN[rel];
+  }
+  const nm = (pc, flat) => V.noteName(pc, flat);
+
+  function chordInfo(ch) {
+    const tones = [...ch.tones.entries()].filter(([o, r]) => r !== 'B').map(([o, r]) => ({ pc: (ch.root + o) % 12, o, r }));
+    const set = new Set(tones.map(t => t.pc));
+    const f = ch.flags || {};
+    const has = o => tones.some(t => t.o === o);
+    const dom = has(4) && has(10);
+    const minor = has(3) && !has(4);
+    const guide = tones.filter(t => t.r === '3' || t.r === '7' || t.r === 'R').map(t => t.pc);
+    return { tones, set, dom, minor, maj7: has(11) && has(4), halfdim: has(3) && has(6) && has(10), dim: has(3) && has(6) && !has(10), guide, has, root: ch.root };
+  }
+  // analiza skali (pcs) względem akordu
+  function analyze(ci, ch, pcs, keySets) {
+    const S = new Set(pcs);
+    const rels = new Set(pcs.map(p => ((p - ch.root) % 12 + 12) % 12));
+    const contains = [...ci.set].every(p => S.has(p));
+    const guideIn = ci.guide.every(p => S.has(p));
+    // sprzeczność z akordem: inna odmiana tej samej tercji / kwinty / septymy
+    const H = ci.has, R = x => rels.has(x);
+    let conflict = 0;
+    if (H(3) && !H(4) && R(4)) conflict++;                 // tercja wielka nad molowym
+    if (H(4) && R(3) && !ci.dom) conflict++;               // #9 tylko na dominancie
+    if (H(6) && !H(7) && R(7)) conflict++;                 // czysta kwinta nad b5
+    if (H(8) && !H(7) && R(7)) conflict++;                 // czysta kwinta nad #5
+    if (H(10) && R(11)) conflict++;                        // 7 wielka nad b7
+    if (H(11) && R(10)) conflict++;                        // b7 nad maj7
+    if (H(9) && ci.dim && (R(10) || R(11))) conflict++;    // septyma nad dim7
+    const tens = [], avoid = [];
+    for (const p of pcs) {
+      if (ci.set.has(p)) continue;
+      const rel = ((p - ch.root) % 12 + 12) % 12;
+      const name = relName(rel, ci);
+      const below = (p + 11) % 12;
+      const okAlt = ci.dom && (rel === 1 || rel === 3 || rel === 8);
+      if (ci.set.has(below) && !okAlt) avoid.push({ pc: p, name, under: below }); else tens.push({ pc: p, name });
+    }
+    let inKey = null, outside = [];
+    if (keySets) {
+      for (const ks of keySets) if (pcs.every(p => ks.set.has(p))) { inKey = ks; break; }
+      outside = pcs.filter(p => !keySets[0].set.has(p));
+    }
+    return { contains, guideIn, tens, avoid, outside, inKey, conflict, rels };
+  }
+  function scaleLabel(root, sc, flat) { return nm(root, flat) + ' ' + sc.pl; }
+
+  function keyFamily(key) {
+    if (!key || !key.scale) return null;
+    const m = key.scale.mask, r = key.root;
+    const out = [{ set: new Set(pcsOf(r, m)), name: 'tonacji ' + key.text }];
+    if (m === 1453) { out.push({ set: new Set(pcsOf(r, 2477)), name: 'molowej harmonicznej' }); out.push({ set: new Set(pcsOf(r, 2733)), name: 'molowej melodycznej' }); }
+    if (m === 2741) out.push({ set: new Set(pcsOf(r, 2485)), name: 'durowej harmonicznej' });
+    return out;
+  }
+  function forChord(ch, opts) {
+    opts = opts || {};
+    if (!ch || ch.nc) return null;
+    const flat = !!opts.flat;
+    const ci = chordInfo(ch);
+    const key = opts.key && opts.key.scale ? opts.key : null;
+    const keySets = keyFamily(key);
+    const pool = opts.pool || V.CATALOG.map(c => c.scale);
+    const seen = new Set();
+    const items = [];
+    const push = (root, sc, cat, why, a, prio) => {
+      const k = root + ':' + sc.mask; if (seen.has(k)) return; seen.add(k);
+      items.push({ root, mask: sc.mask, scale: sc, cat, why, a, prio, label: scaleLabel(root, sc, flat) });
+    };
+    const colorNames = new Set(['9', 'b9', '#9', '11', '#11', '13', 'b13', '6']);
+    const tenTxt = a => a.tens.filter(t => colorNames.has(t.name)).map(t => t.name).join(', ');
+    const avoidTxt = a => a.avoid.length ? ' Uważaj na ' + a.avoid.map(x => nm(x.pc, flat) + ' (' + x.name + ')').join(', ') + ' – pół tonu nad dźwiękiem akordu: przechodź przez niego, nie zatrzymuj się.' : '';
+    const auto = V.autoScaleFor(ch, key);
+    const isBebop = sc => /^bebop/i.test(sc.en);
+    const hasThird = ci.has(3) || ci.has(4);
+    for (const sc of pool) {
+      const pcs = pcsOf(ch.root, sc.mask);
+      const a = analyze(ci, ch, pcs, keySets);
+      if (a.conflict && !(isBebop(sc) && a.conflict === 1)) continue;
+      const t = tenTxt(a);
+      const isAuto = auto && auto.mask === sc.mask;
+      const keyTxt = a.inKey ? (a.inKey === keySets[0] ? 'Z ' + a.inKey.name + ' – brzmi „w środku” harmonii.' : 'Z ' + a.inKey.name + ' ' + nm(key.root, flat) + ' – typowy wybór na tym akordzie w tej tonacji.') : '';
+      if (sc.size <= 6 && sc.size >= 5 && a.avoid.length === 0 && a.contains === false && !(ci.has(0) && (!hasThird || a.rels.has(ci.has(3) ? 3 : 4)))) continue;
+      if (sc.size === 5 && a.avoid.length === 0 && (!hasThird || a.rels.has(ci.has(3) ? 3 : 4))) {
+        const safe = !keySets || a.inKey;
+        push(ch.root, sc, safe ? 'safe' : 'color', 'Pięć dźwięków, żadnego dźwięku unikanego – najpewniejszy materiał na frazy.' + (t ? ' Kolor: ' + t + '.' : '') + (!safe ? ' Spoza tonacji: ' + a.outside.map(p => nm(p, flat)).join(', ') + '.' : ''), a, safe ? 1 : 3);
+        continue;
+      }
+      if (!a.contains && !(ci.dom && a.guideIn && sc.size >= 6)) continue;
+      if (a.inKey || isAuto) {
+        push(ch.root, sc, 'safe', (keyTxt || 'Naturalny wybór dla tego akordu.') + (t ? ' Napięcia: ' + t + '.' : '') + avoidTxt(a), a, isAuto ? 0 : 2);
+      } else if (a.contains && a.avoid.length <= 1 && (keySets ? a.outside.length <= 2 : sc.size >= 6)) {
+        const out = a.outside.map(p => nm(p, flat)).join(', ');
+        push(ch.root, sc, 'color', (out ? 'Spoza tonacji: ' + out + ' – świeży kolor, wciąż czytelny.' : 'Inny kolor przy tych samych dźwiękach akordu.') + (isBebop(sc) ? ' Ma dodatkowy dźwięk przejściowy – graj go w ruchu, na słabej części miary.' : '') + (t ? ' Napięcia: ' + t + '.' : '') + avoidTxt(a), a, 3 + a.avoid.length + a.outside.length * 0.5 + (isBebop(sc) ? 1 : 0));
+      } else if (a.avoid.length <= 1) {
+        const altered = a.tens.some(x => ['b9', '#9', 'b13', '#5'].includes(x.name));
+        const why = ci.dom && altered ? 'Alterowane napięcia dominanty – mocne „ciągnięcie” do następnego akordu; rozwiąż je na jego dźwięku.' : ci.dom && !a.contains ? 'Bez czystej kwinty – rozmyty, nowoczesny kolor dominanty.' : 'Wyrazisty, nietypowy charakter – używaj krótko i wracaj do skali bazowej.';
+        push(ch.root, sc, 'bold', why + (t ? ' Napięcia: ' + t + '.' : '') + avoidTxt(a), a, 6 + a.avoid.length + (keySets ? a.outside.length * 0.3 : 0));
+      }
+    }
+    // pentatoniki nałożone z innych prym (superimpozycja)
+    const pentMin = V.findScale('minor pentatonic');
+    for (let r = 0; r < 12; r++) {
+      if (r === ch.root) continue;
+      const pcs = pcsOf(r, pentMin.mask);
+      const a = analyze(ci, ch, pcs, keySets);
+      const inChord = pcs.filter(p => ci.set.has(p)).length;
+      if (a.avoid.length || a.conflict || inChord < 2) continue;
+      if (!ci.guide.filter(p => p !== ch.root).some(p => pcs.includes(p))) continue;
+      const t = tenTxt(a);
+      const out = keySets ? a.outside.length : 0;
+      const degs = pcs.map(p => relName(((p - ch.root) % 12 + 12) % 12, ci)).join(' ');
+      const why = `Pentatonika molowa ${nm(r, flat)} (= durowa ${nm((r + 3) % 12, flat)}) nad ${ch.symbol} daje stopnie ${degs}.` + (t ? ' Kolor: ' + t + '.' : '') + (out ? ' Poza tonacją: ' + a.outside.map(p => nm(p, flat)).join(', ') + '.' : '') + ' Znane pudełka, nowe brzmienie.';
+      push(r, pentMin, 'pent', why, a, 4 + out * 0.6 - a.tens.filter(x => colorNames.has(x.name)).length * 0.3);
+    }
+    let target = null;
+    if (opts.next && !opts.next.nc) {
+      const ni = chordInfo(opts.next);
+      target = ni.tones.filter(t => t.r === '3' || t.r === '7').map(t => ({ pc: t.pc, role: t.r === '3' ? 'tercja' : 'septyma' }));
+    }
+    const order = { safe: 0, color: 1, pent: 2, bold: 3 };
+    items.sort((x, y) => order[x.cat] - order[y.cat] || x.prio - y.prio || x.scale.size - y.scale.size);
+    const cnt = {}; const out = items.filter(it => (cnt[it.cat] = (cnt[it.cat] || 0) + 1) <= 4);
+    return { items: out, target, nextSym: opts.next && !opts.next.nc ? opts.next.symbol : null };
+  }
+  // dźwięki docelowe przy zmianie akordu: najbliższe dźwięki obecnej skali do tercji/septymy następnego akordu
+  function targetText(root, mask, sug, flat) {
+    if (!sug || !sug.target || !sug.target.length) return '';
+    const pcs = pcsOf(root, mask);
+    return sug.target.map(t => {
+      const inS = pcs.includes(t.pc);
+      const near = pcs.filter(p => Math.min((p - t.pc + 12) % 12, (t.pc - p + 12) % 12) === 1);
+      return `${t.role} ${sug.nextSym}: ${nm(t.pc, flat)}` + (inS ? ' (jest w skali – zagraj ją na zmianie)' : near.length ? ' (dojdź półtonem z ' + near.map(p => nm(p, flat)).join(' / ') + ')' : '');
+    }).join(' · ');
+  }
+  // skale pasujące do wielu akordów naraz (do całego utworu lub fragmentu)
+  function common(chords, opts) {
+    opts = opts || {};
+    const pool = opts.pool || V.CATALOG.map(c => c.scale);
+    const uniq = []; const seenSym = new Set();
+    for (const ch of chords) if (ch && !ch.nc && !seenSym.has(ch.symbol)) { seenSym.add(ch.symbol); uniq.push(ch); }
+    if (!uniq.length) return [];
+    const res = []; const seen = new Set();
+    for (const sc of pool.filter(x => !/^bebop/i.test(x.en))) for (let r = 0; r < 12; r++) {
+      const k = (sc.mask * 16 + r); if (seen.has(k)) continue; seen.add(k);
+      const S = new Set(pcsOf(r, sc.mask));
+      const fit = uniq.filter(ch => [...ch.tones.entries()].every(([o, role]) => role === 'B' || S.has((ch.root + o) % 12)));
+      if (fit.length < Math.max(2, Math.ceil(uniq.length * 0.6))) continue;
+      res.push({ root: r, mask: sc.mask, scale: sc, fit: fit.length, of: uniq.length, miss: uniq.filter(c => !fit.includes(c)).map(c => c.symbol) });
+    }
+    // jedna pozycja na zestaw dźwięków: preferuj nazwę z pierwszej pozycji katalogu, mniejsze skale wyżej przy remisie
+    // ten sam zestaw dźwięków = jedna pozycja; nazwa od toniki utworu, jeśli się da (A moll zamiast C dur)
+    const bySet = new Map();
+    for (const x of res) {
+      const key = pcsOf(x.root, x.mask).sort((a, b) => a - b).join(',');
+      const cur = bySet.get(key);
+      if (!cur) { x.alt = []; bySet.set(key, x); continue; }
+      const better = opts.keyRoot != null && x.root === opts.keyRoot && cur.root !== opts.keyRoot;
+      if (better) { x.alt = [cur, ...cur.alt]; bySet.set(key, x); } else cur.alt.push(x);
+    }
+    const pen = sc => (/^bebop/i.test(sc.en) ? 2 : 0) + (sc.family === 'Egzotyczne' || sc.family === 'Jazzowe' ? 1 : 0) + (sc.family === 'Mody' ? 0.1 : 0);
+    return [...bySet.values()].sort((a, b) => b.fit - a.fit || pen(a.scale) - pen(b.scale) || a.scale.size - b.scale.size).slice(0, opts.limit || 6);
+  }
+  G.SUGGEST = { forChord, common, targetText };
+})(typeof window !== 'undefined' ? window : globalThis);
+
 /* ===== Gryf na żywo — aplikacja ===== */
 (function () {
   'use strict';
@@ -2312,7 +2507,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '2.2';
+  const VERSION = '2.3';
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
@@ -2564,7 +2759,7 @@ odliczanie: 1
           const col = fg != null ? S.colors['f' + fg] : ROLE_COLOR(cell.cls);
           c.dot.setAttribute('fill', col);
           c.dot.setAttribute('opacity', cell.next ? '.38' : cell.dim ? '.16' : fg != null ? (isScale && cell.cls !== 'root' && !cell.chordTone ? '.62' : '1') : isScale ? '.38' : '1');
-          // tonik w kolorach palców: biała obwódka
+          // tonika w kolorach palców: biała obwódka
           const rootMark = fg != null && !cell.dim && (cell.cls === 'root' || cell.role === 'R' || cell.role === '1');
           c.dot.setAttribute('stroke', cell.sel ? '#fff' : rootMark ? '#fff' : 'none'); c.dot.setAttribute('stroke-width', cell.sel ? '4' : rootMark ? '3' : '0');
           c.ring.style.display = pv || cell.sel ? '' : 'none';
@@ -3390,27 +3585,32 @@ odliczanie: 1
     return ev.scaleObj && !ev.chordOnly ? V.positionMap(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionMap(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets);
   }
   const posLabel = ev => ev && ev.posSet ? ' · poz. ' + V.posSort([...ev.posSet]).join('+') : '';
-  // wybór pozycji: system (CAGED / 3NPS / od toniku) + numery; można łączyć pozycje z różnych systemów
+  // wybór pozycji: system (CAGED / 3NPS / od toniki) + numery; można łączyć pozycje z różnych systemów
   function posPickerHtml(mask, root, set, attr, flat) {
-    const sel = set && set !== 'all' ? set : null;
+    const sel = set && set !== 'all' && set.size ? set : null;
+    if (sel) { const first = V.posSort([...sel])[0][0]; if (![...sel].some(x => x[0] === S.posSys)) S.posSys = first; }
     const sys = S.posSys || 'C';
     const btn = (it, main, sub, tip) => `<button ${attr}="${it}" aria-pressed="${!!(sel && sel.has(it))}" title="${esc(tip)}">${main}<br><span class="pos-sub">${esc(sub)}</span></button>`;
-    let row = '';
-    if (sys === 'C' || sys === 'N') row = V.POS_WIN[sys].map((w, i) => btn(sys + (i + 1), String(i + 1), w[0] + '–' + w[1], `${V.POS_SYS[sys]} ${i + 1}: progi ${w[0]}–${w[1]}`)).join('');
+    const all = `<button ${attr}="all" aria-pressed="${!sel}" title="Bez podziału na pozycje – cały gryf">Cały<br><span class="pos-sub">gryf</span></button>`;
+    let rows;
+    if (sys === 'C' || sys === 'N') rows = `<div class="seg" role="group" aria-label="Pozycje">${all}${V.POS_WIN[sys].map((w, i) => btn(sys + (i + 1), String(i + 1), w[0] + '–' + w[1], `${V.POS_SYS[sys]} ${i + 1}: progi ${w[0]}–${w[1]}`)).join('')}</div>`;
     else {
       const t = it => { const inf = mask == null ? null : V.positionInfo(mask, root, tuningArr(), it, S.frets); const nn = inf ? prettyAcc(V.noteName(inf.pc, flat)) : ''; const fr = inf && inf.frets.length ? inf.frets.join('/') : '–'; return btn(it, it.slice(1), nn + '·' + fr, inf ? `Od ${nn} na strunie ${inf.string === 6 ? 'E (6.)' : 'A (5.)'}, próg ${fr}` : ''); };
-      row = `<div class="stack" style="gap:6px"><span class="small muted">od struny E (6.):</span><div class="seg">${[1, 2, 3, 4, 5].map(n => t('T' + n)).join('')}</div><span class="small muted">od struny A (5.):</span><div class="seg">${[1, 2, 3, 4, 5].map(n => t('T' + n + 'A')).join('')}</div></div>`;
+      rows = `<div class="stack" style="gap:6px"><div class="seg">${all}</div><span class="small muted">od struny E (6.):</span><div class="seg">${[1, 2, 3, 4, 5].map(n => t('T' + n)).join('')}</div><span class="small muted">od struny A (5.):</span><div class="seg">${[1, 2, 3, 4, 5].map(n => t('T' + n + 'A')).join('')}</div></div>`;
     }
     const other = sel ? [...sel].filter(x => x[0] !== sys) : [];
-    return `<div class="pos-pick"><div class="row"><div class="seg" role="group" aria-label="System pozycji">${['C', 'N', 'T'].map(k => `<button data-possys="${k}" aria-pressed="${k === sys}">${V.POS_SYS[k] === 'od toniku' ? 'Od toniku' : V.POS_SYS[k]}</button>`).join('')}</div>
-      <button ${attr}="all" aria-pressed="${!(sel && sel.size)}">Cały gryf</button></div>
-      <div class="row pos-nums">${sys === 'T' ? row : `<div class="seg" role="group" aria-label="Pozycje">${row}</div>`}</div>
+    return `<div class="pos-pick"><div class="seg" role="group" aria-label="System pozycji">${['C', 'N', 'T'].map(k => `<button data-possys="${k}" aria-pressed="${!!sel && k === sys}">${V.POS_SYS[k] === 'od toniki' ? 'Od toniki' : V.POS_SYS[k]}</button>`).join('')}</div>
+      <div class="row pos-nums">${rows}</div>
       ${other.length ? `<p class="small muted">Wybrane też: ${esc(V.posSort(other).map(V.posLabel).join(', '))}</p>` : ''}</div>`;
   }
   // obsługa kliknięć w wybieraku pozycji; onChange(newSet|null)
   function posPickerClick(e, set, attr, onChange, rerender) {
     const sy = e.target.closest('[data-possys]');
-    if (sy) { S.posSys = sy.dataset.possys; save(); rerender(); return; }
+    if (sy) {
+      // przełączenie systemu = jak w Scale Teacher: od razu pozycja 1 tego systemu
+      const k = sy.dataset.possys; S.posSys = k; save();
+      onChange(new Set([k === 'T' ? 'T1' : k + '1'])); return;
+    }
     const b = e.target.closest('[' + attr + ']'); if (!b) return;
     const v = b.getAttribute(attr);
     let ns = new Set(set && set !== 'all' ? [...set] : []);
@@ -3717,7 +3917,7 @@ odliczanie: 1
     });
     renderLegend();
   }
-  function fingerLegendHtml() { return [['f1', '1 – palec wskazujący'], ['f2', '2 – środkowy'], ['f3', '3 – serdeczny'], ['f4', '4 – mały'], ['f0', 'struna pusta']].map(([k, l]) => `<span><i style="background:${S.colors[k]}"></i>${l}</span>`).join('') + '<span><i style="background:none;border:2px solid #fff"></i>tonik</span>'; }
+  function fingerLegendHtml() { return [['f1', '1 – palec wskazujący'], ['f2', '2 – środkowy'], ['f3', '3 – serdeczny'], ['f4', '4 – mały'], ['f0', 'struna pusta']].map(([k, l]) => `<span><i style="background:${S.colors[k]}"></i>${l}</span>`).join('') + '<span><i style="background:none;border:2px solid #fff"></i>tonika</span>'; }
   function renderLegend() {
     $$('.flegend').forEach(el => el.innerHTML = S.fingerColors ? fingerLegendHtml() : '');
     if (NEG) {
@@ -3806,6 +4006,8 @@ odliczanie: 1
       renderExVoicing();
       const rel = ch.mask; const auto = V.autoScaleFor(ch);
       const list = V.scalesContaining(rel, catalogPool()).sort((x, y) => (auto && y.mask === auto.mask) - (auto && x.mask === auto.mask)).slice(0, 40);
+      const sug = SUGGEST.forChord(ch, { flat, pool: catalogPool() });
+      $('#chSug').innerHTML = sugHtml(sug, flat, SC.root, SC.mask);
       $('#chScales').innerHTML = list.map(s => `<button data-root="${ch.root}" data-mask="${s.mask}"><span class="nm">${esc(prettyAcc(V.noteName(ch.root, flat)) + ' ' + s.pl)}${auto && auto.mask === s.mask ? ' · <span style="color:var(--accent)">mój wybór</span>' : ''}</span><span class="fa">${s.size}</span><span class="fm">${esc(prettyAcc(V.formula(s.mask)))}</span></button>`).join('') || '<p class="small muted" style="padding:10px">Brak skali z katalogu zawierającej wszystkie te dźwięki.</p>';
     } catch (e) { $('#chTones').innerHTML = `<span style="color:var(--bad)">${esc(e.message)}</span>`; $('#chScales').innerHTML = ''; }
   }
@@ -3859,6 +4061,13 @@ odliczanie: 1
     $$('[data-deg]').forEach(b => b.onclick = () => { SC.deg = +b.dataset.deg; renderScaleDetail(); });
     $('#scDegrees').onclick = e => { const b = e.target.closest('[data-chord]'); if (!b || !b.dataset.chord) return; try { SC.chordShown = V.parseChord(b.dataset.chord); } catch (err) { SC.chordShown = null; } renderScaleDetail(); };
     $('#chGo').onclick = renderChordExplorer; $('#chIn').onkeydown = e => { if (e.key === 'Enter') renderChordExplorer(); };
+    $('#chSug').onclick = e => {
+      const b = e.target.closest('[data-smask]'); if (!b) return;
+      SC.root = +b.dataset.sroot; SC.mask = +b.dataset.smask; SC.curKey = null;
+      try { SC.chordShown = V.parseChord($('#chIn').value.trim()); } catch (err) { SC.chordShown = null; }
+      $$('#scRoots button').forEach(x => x.setAttribute('aria-pressed', String(+x.dataset.root === SC.root)));
+      renderScaleDetail(); renderScaleList(); $('#scName').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    };
     $('#chScales').onclick = e => {
       const b = e.target.closest('[data-mask]'); if (!b) return;
       SC.root = +b.dataset.root; SC.mask = +b.dataset.mask;
@@ -4212,7 +4421,7 @@ odliczanie: 1
       <div class="stack" style="gap:4px"><span class="small muted">Pozycje:</span><div id="inPos">${ev.chord.nc ? '' : (() => { const sR = ev.scaleObj && !ev.chordOnly; const m = sR ? ev.scaleObj.mask : ev.chord.mask, r = sR ? ev.scaleRootPc : ev.chord.root; return posPickerHtml(m, r, ev.posSet, 'data-ipos', spellFlat(r, m, flat)); })()}</div></div>
       ${ST.song.positions && ST.song.positions !== 'all' && !tk.posStr ? '<p class="small muted">Domyślne pozycje utworu: ' + V.posSort([...ST.song.positions]).join('+') + '</p>' : ''}
       <div class="row">
-        <label class="f" style="width:96px">Tonik <select id="inRoot">${V.SHARP.map((n, i) => `<option value="${i}"${i === ST.scaleRoot ? ' selected' : ''}>${esc(prettyAcc(V.FLAT_ROOTS.has(i) && i !== 6 ? V.FLAT[i] : n))}</option>`).join('')}</select></label>
+        <label class="f" style="width:96px">Tonika <select id="inRoot">${V.SHARP.map((n, i) => `<option value="${i}"${i === ST.scaleRoot ? ' selected' : ''}>${esc(prettyAcc(V.FLAT_ROOTS.has(i) && i !== 6 ? V.FLAT[i] : n))}</option>`).join('')}</select></label>
         <label class="f grow">Szukaj skali <input type="search" id="inScaleQ" value="${esc(ST.scaleQ)}" placeholder="np. dorycka, altered, 145"></label>
       </div>
       <div class="slist short" id="inScales"></div>
@@ -4237,12 +4446,70 @@ odliczanie: 1
         <button class="btn" id="inVSave">Zapisz ten chwyt w utworze</button>
         <button class="btn" id="inVClear"${tk.shapeStr ? '' : ' disabled'}>Wróć do automatycznego</button>
       </div>
-    </div></div>`;
+    </div></div>
+    <div class="stack" style="gap:8px;margin-top:14px"><h3>Podpowiedzi do solówki</h3><p class="small muted">Skale, które pasują do ${esc(prettyAcc(ev.chord.symbol))}${ST.song.key ? ' w tonacji ' + esc(ST.song.key.text) : ''} – od najbezpieczniejszych po odważne. Dotknij, żeby ustawić na tym akordzie.</p><div class="sug" id="inSug"></div></div>`;
     box.innerHTML = h;
     fbStudio.fb = new Fretboard($('#stFb')); fbStudio.fb.capoFn = stCapo;
+    renderSuggestions(ev);
     renderScaleChoices(ev);
     renderStudioPreview(ev);
     bindInspector(ev);
+  }
+  // podpowiedzi skal (bezpiecznie / kolor / pentatoniki nałożone / odważnie)
+  const SUG_CAT = { safe: 'Bezpiecznie', color: 'Kolor', pent: 'Pentatonika nałożona', bold: 'Odważnie' };
+  function sugHtml(sug, flat, curRoot, curMask) {
+    if (!sug || !sug.items.length) return '<p class="small muted">Brak podpowiedzi dla tego akordu.</p>';
+    let last = '';
+    return sug.items.map(it => {
+      const head = it.cat !== last ? `<h4 class="sugh sug-${it.cat}">${SUG_CAT[it.cat]}</h4>` : ''; last = it.cat;
+      const tgt = sug.target ? SUGGEST.targetText(it.root, it.mask, sug, flat) : '';
+      const cur = it.root === curRoot && it.mask === curMask;
+      return head + `<button class="sugit${cur ? ' cur' : ''}" data-sroot="${it.root}" data-smask="${it.mask}"><b>${esc(prettyAcc(V.noteName(it.root, flat) + ' ' + it.scale.pl))}</b>${cur ? ' <span class="small" style="color:var(--accent)">· ustawiona</span>' : ''}<span class="why">${esc(prettyAcc(it.why))}</span>${tgt ? `<span class="tg">Na zmianie → ${esc(prettyAcc(tgt))}</span>` : ''}</button>`;
+    }).join('');
+  }
+  function nextChordAfter(ev) {
+    const evs = ST.song.events; let i = evs.indexOf(ev);
+    for (let j = i + 1; j < evs.length; j++) if (!evs[j].tied && evs[j].chord.symbol !== ev.chord.symbol) return evs[j].chord;
+    return null;
+  }
+  function renderSuggestions(ev) {
+    const box = $('#inSug'); if (!box) return;
+    if (ev.chord.nc) { box.innerHTML = ''; return; }
+    const flat = !!(ST.song.key && ST.song.key.flat) || ev.chord.flat;
+    const sug = SUGGEST.forChord(ev.chord, { key: ST.song.key, next: nextChordAfter(ev), flat, pool: catalogPool() });
+    box.innerHTML = sugHtml(sug, flat, ev.scaleObj ? ev.scaleRootPc : -1, ev.scaleObj && !ev.chordOnly ? ev.scaleObj.mask : -1);
+    box.onclick = e => {
+      const b = e.target.closest('[data-smask]'); if (!b) return;
+      const root = +b.dataset.sroot, sc = V.scaleByMask(+b.dataset.smask), slug = scaleSlug(sc);
+      const rootName = V.noteName(root, spellFlat(root, sc.mask, flat));
+      tokenEdit(ev, { ...ev.tk, scaleSpec: root === ev.chord.root ? slug : rootName + ':' + slug }, false);
+    };
+  }
+  // jedna skala na cały utwór
+  function renderCommon() {
+    const box = $('#stCommon'); if (!box) return;
+    const sg = ST.song; const chords = sg.events.filter(e => !e.tied).map(e => e.chord);
+    const flat = !!(sg.key && sg.key.flat);
+    const res = SUGGEST.common(chords, { pool: catalogPool(), keyRoot: sg.key ? sg.key.root : null });
+    box.hidden = false;
+    if (!res.length) { box.innerHTML = '<p class="small muted">Żadna skala z katalogu nie obejmuje większości akordów – ten utwór lepiej grać skalą zmienianą co akord (podpowiedzi przy każdym akordzie).</p><button class="btn" id="cmClose">Zamknij</button>'; $('#cmClose').onclick = () => box.hidden = true; return; }
+    box.innerHTML = '<p class="small">Skale wspólne dla wielu akordów utworu. „Ustaw” zapisze tę skalę przy każdym akordzie (potem możesz zmienić pojedyncze akordy, np. tam, gdzie skala nie pasuje).</p>' + res.map((r, i) => `<div class="cmrow"><div class="grow"><b>${esc(prettyAcc(V.noteName(r.root, flat) + ' ' + r.scale.pl))}</b>${r.alt && r.alt.length ? ' <span class="small muted">= ' + esc(prettyAcc(r.alt.slice(0, 2).map(a => V.noteName(a.root, flat) + ' ' + a.scale.pl).join(', '))) + '</span>' : ''}<br><span class="small">${r.fit}/${r.of} akordów${r.miss.length ? ' · nie pasuje do: ' + esc(prettyAcc(r.miss.join(', '))) : ' · pasuje do wszystkich'}</span></div><button class="btn" data-cmi="${i}">Ustaw</button></div>`).join('') + '<button class="btn" id="cmClose">Zamknij</button>';
+    $('#cmClose').onclick = () => box.hidden = true;
+    box.onclick = e => {
+      const b = e.target.closest('[data-cmi]'); if (!b) return;
+      const r = res[+b.dataset.cmi]; const slug = scaleSlug(r.scale);
+      const rootName = V.noteName(r.root, spellFlat(r.root, r.mask, flat));
+      const edits = [], seenLoc = new Set();
+      for (const ev of sg.events) {
+        if (ev.tied || !ev.loc || ev.chord.nc || ev.viaPercent || ev.rep) continue;
+        const lk = ev.loc.ln + ':' + ev.loc.cell + ':' + ev.loc.tok; if (seenLoc.has(lk)) continue; seenLoc.add(lk);
+        const fits = [...ev.chord.tones.entries()].every(([o, role]) => role === 'B' || r.scale.iv.includes(((ev.chord.root + o - r.root) % 12 + 12) % 12));
+        if (!fits) continue;
+        edits.push({ ...ev.loc, text: V.composeToken({ ...ev.tk, scaleSpec: rootName + ':' + slug }) });
+      }
+      commitText(V.rewriteTokens(editorText(), edits));
+      box.hidden = true; toast('Ustawiono ' + prettyAcc(V.noteName(r.root, flat) + ' ' + r.scale.pl) + ' na ' + edits.length + ' akordach');
+    };
   }
   // skale do wyboru: katalog (bez powtórzeń) + własne
   function catalogPool() {
@@ -4880,6 +5147,7 @@ odliczanie: 1
   /* ---------- obsługa ---------- */
   function bindStudio() {
     bindSolo();
+    $('#stCommonBtn').onclick = renderCommon;
     // nagłówek utworu
     const dir = (id, key, label, check) => $(id).onchange = e => {
       const v = e.target.value.trim();
