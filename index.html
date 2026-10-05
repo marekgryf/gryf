@@ -325,7 +325,7 @@ main.wide { max-width: 1680px; }
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.4</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.5</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -3100,7 +3100,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '2.4';
+  const VERSION = '2.5';
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
@@ -3461,6 +3461,42 @@ odliczanie: 1
     if (A.ctx && !A.elSrc) { try { A.elSrc = A.ctx.createMediaElementSource(A.el); A.elSrc.connect(A.gFile); } catch (err) { } }
     return A.el;
   }
+  // odtwarzacz podkładu: przy 100% – zdekodowany bufor w Web Audio (czysto, co do próbki zgodnie z zegarem);
+  // przy innej prędkości – element <audio> z zachowaniem wysokości dźwięku
+  const FP = {
+    kind: null, src: null, t0: 0, off0: 0, rate: 1, buffer: null, bufFor: null, ended: false, dec: null,
+    async prepare(blob, id) {
+      this.buffer = null; this.bufFor = null;
+      try {
+        A.ensure();
+        const arr = await blob.arrayBuffer();
+        const buf = await new Promise((res, rej) => { const p = A.ctx.decodeAudioData(arr, res, rej); if (p && p.then) p.then(res, rej); });
+        if (AU.songId === id) { this.buffer = buf; this.bufFor = id; }
+      } catch (e) { /* zostaje element <audio> */ }
+    },
+    start(ft, rate) {
+      this.stop(); A.ensure();
+      if (Math.abs(rate - 1) < 0.001 && this.buffer && this.bufFor === AU.songId) {
+        const s2 = A.ctx.createBufferSource(); s2.buffer = this.buffer; s2.connect(A.gFile);
+        const t = A.ctx.currentTime + 0.06; s2.start(t, Math.max(0, ft));
+        s2.onended = () => { if (this.src === s2) this.ended = true; };
+        this.src = s2; this.kind = 'buf'; this.t0 = t; this.off0 = Math.max(0, ft); this.rate = 1; this.ended = false;
+        return t;
+      }
+      ensureEl(); A.el.currentTime = Math.max(0, ft); A.el.playbackRate = rate; setPreserve(A.el);
+      A.el.play().catch(e => toast('Nie mogę odtworzyć pliku: ' + e.message));
+      this.kind = 'el'; this.rate = rate; this.ended = false;
+      return A.ctx.currentTime;
+    },
+    stop() {
+      if (this.src) { const s2 = this.src; this.src = null; s2.onended = null; try { s2.stop(); } catch (e) { } }
+      if (A.el && !A.el.paused) A.el.pause();
+      this.kind = null;
+    },
+    time() { return this.kind === 'buf' ? this.off0 + Math.max(0, A.ctx.currentTime - this.t0) : (A.el ? A.el.currentTime : 0); },
+    paused() { return this.kind === 'buf' ? false : (!A.el || A.el.paused); },
+    isEnded() { return this.kind === 'buf' ? (this.ended || (this.buffer && this.time() >= this.buffer.duration)) : !!(A.el && A.el.ended); }
+  };
   const AU = {
     songId: null, url: null, ready: false, name: '',
     clear() { if (A.el) { A.el.pause(); A.el.removeAttribute('src'); try { A.el.load(); } catch (e) { } } if (this.url) URL.revokeObjectURL(this.url); this.url = null; this.songId = null; this.ready = false; this.name = ''; audioUi(); },
@@ -3473,6 +3509,7 @@ odliczanie: 1
       if (this.url) URL.revokeObjectURL(this.url);
       this.url = URL.createObjectURL(blob); A.el.src = this.url; A.el.load();
       this.songId = s.id; this.ready = true; this.name = s.audio.name; audioUi();
+      FP.prepare(blob, s.id);
     }
   };
   function audioUi() {
@@ -3493,7 +3530,7 @@ odliczanie: 1
       }
       return this.anchorN + (A.ctx.currentTime - this.anchorT) * this.factor;
     },
-    rate() { return this.fileMode() ? (A.el ? A.el.playbackRate : 1) : this.factor; },
+    rate() { return this.fileMode() ? FP.rate : this.factor; },
     fileMode() { return !!((this.mode === 'train' ? S.source === 'file' : S.liveBacking) && A.el && AU.ready && AU.songId === this.songId); },
     ctxTimeOf(n) { return this.anchorT + (n - this.anchorN) / this.rate(); },
     nominalAtCtx(tc) { return this.anchorN + (tc - this.anchorT) * this.rate(); },
@@ -3550,9 +3587,8 @@ odliczanie: 1
     if (P.fileMode()) {
       const off = P.song.offset || 0;
       const ft = Math.max(0, b.startSec + off);
-      A.el.currentTime = ft; A.el.playbackRate = P.factor; setPreserve(A.el);
-      A.el.play().catch(e => toast('Nie mogę odtworzyć pliku: ' + e.message));
-      P.anchorN = ft - off; P.anchorT = A.ctx.currentTime;
+      const ts = FP.start(ft, train ? P.factor : 1);
+      P.anchorN = ft - off; P.anchorT = ts;
     } else {
       P.anchorN = startN; P.anchorT = t0;
     }
@@ -3566,7 +3602,7 @@ odliczanie: 1
     if (!P.running) return;
     P.pos = clamp(P.now(), 0, P.song ? P.song.lenSec : 0);
     P.running = false; P.ciUntil = null;
-    if (A.el) A.el.pause();
+    FP.stop();
     $('#btnPlay').textContent = 'Start'; $('#btnPlay').classList.add('primary');
     if (P.wake) { try { P.wake.release(); } catch (e) { } P.wake = null; }
     taps = [];
@@ -3578,8 +3614,8 @@ odliczanie: 1
     P.ciUntil = null;
     if (P.fileMode()) {
       const off = P.song.offset || 0;
-      A.el.currentTime = Math.max(0, n + off);
-      P.anchorN = n; P.anchorT = A.ctx.currentTime;
+      const ts = FP.start(Math.max(0, n + off), FP.rate);
+      P.anchorN = n; P.anchorT = ts;
     } else { P.anchorN = n; P.anchorT = A.ctx.currentTime; }
     P.schedN = n - 0.03;
   }
@@ -3597,10 +3633,12 @@ odliczanie: 1
     // korekta dryfu pliku audio
     if (P.fileMode()) {
       const off = P.song.offset || 0;
-      const fileN = A.el.currentTime - off;
-      const n = P.now();
-      if (Math.abs(fileN - n) > 0.06 || A.el.paused) { P.anchorN = fileN; P.anchorT = A.ctx.currentTime; if (P.schedN > fileN + LOOK || P.schedN < fileN - 0.5) P.schedN = fileN - 0.01; }
-      if (A.el.ended) { stop(); P.pos = 0; return; }
+      if (FP.kind === 'el') {
+        const fileN = A.el.currentTime - off;
+        const n = P.now();
+        if (Math.abs(fileN - n) > 0.06 || A.el.paused) { P.anchorN = fileN; P.anchorT = A.ctx.currentTime; if (P.schedN > fileN + LOOK || P.schedN < fileN - 0.5) P.schedN = fileN - 0.01; }
+      }
+      if (FP.isEnded()) { stop(); P.pos = 0; return; }
     }
     let now = P.now();
     if (P.mode === 'train' && P.loop) {
@@ -4414,14 +4452,42 @@ odliczanie: 1
     $('#btnSecPrev').onclick = () => secJump(-1); $('#btnSecNext').onclick = () => secJump(1);
     $('#timeline').onclick = e => { const b = e.target.closest('.bar'); if (b) gotoBar(+b.dataset.bar); };
     $('#secChips').onclick = e => { const b = e.target.closest('.chip'); if (b) gotoBar(+b.dataset.bar); };
-    const bump = dir => {
-      const song = P.song; if (!song) return;
-      const b = song.bars[Math.max(0, V.barAtSec(song, Math.max(0, P.now())))];
-      if (P.fileMode()) { const sp = clamp(+$('#speed').value + dir, 40, 130); $('#speed').value = sp; applySpeed(); return; }
-      const base = 60 / b.secPerQ; const cur = base * P.factor; P.setFactor((cur + dir) / base);
-      if (P.mode === 'train') { $('#speed').value = Math.round(P.factor * 100); $('#speedVal').textContent = Math.round(P.factor * 100) + '%'; }
+    // tempo: w Treningu = prędkość ćwiczenia; w Koncercie = tempo utworu (zapisywane w utworze),
+    // a gdy jest mapa taktów z nagrania – tempo wynika z nagrania i nie da się go „przestawić”
+    const curBase = () => { const song = P.song; const b = song.bars[Math.max(0, V.barAtSec(song, Math.max(0, P.now())))]; return 60 / b.secPerQ; };
+    const setTempo = target => {
+      const song = P.song; if (!song || !song.bars.length) return;
+      const base = curBase();
+      if (P.mode === 'train') {
+        const pct = clamp(Math.round(target / base * 100), 40, 130);
+        $('#speed').value = pct; applySpeed(); return;
+      }
+      if (song.mapped > 1) { toast('Tempo bierze się z nagrania (mapa taktów). Popraw mapę w Pracowni – „Rozpoznaj z nagrania” albo stukanie taktów.'); return; }
+      const s2 = songById(P.songId); if (!s2) return;
+      const v = Math.round(clamp(target, 20, 400) * 10) / 10;
+      s2.text = V.setDirective(s2.text, 'bpm', String(v), 'bpm'); saveSongs();
+      const run = P.running, t = P.now(); loadSong(P.songId, true); if (run) seek(t);
+      if (editId === P.songId) $('#editor').value = s2.text;
+      lastKey = '';
     };
-    $('#tDown').onclick = () => bump(-1); $('#tUp').onclick = () => bump(1);
+    const bump = dir => { if (!P.song) return; setTempo(curBase() * (P.mode === 'train' ? P.factor : 1) + dir); };
+    const hold = (el, dir) => {
+      let tmr = null, iv = null, n = 0;
+      const end = () => { clearTimeout(tmr); clearInterval(iv); tmr = iv = null; };
+      el.onpointerdown = e => { e.preventDefault(); bump(dir); n = 0; tmr = setTimeout(() => { iv = setInterval(() => { n++; bump(dir * (n > 15 ? 5 : 1)); }, 90); }, 420); };
+      el.onpointerup = el.onpointerleave = el.onpointercancel = end;
+      el.onclick = e => e.preventDefault();
+    };
+    hold($('#tDown'), -1); hold($('#tUp'), 1);
+    $('#tempoVal').title = 'Dotknij, żeby wpisać tempo';
+    $('#tempoVal').style.cursor = 'pointer';
+    $('#tempoVal').onclick = () => {
+      if (!P.song) return;
+      const cur = Math.round(curBase() * (P.mode === 'train' ? P.factor : 1));
+      const v = prompt(P.mode === 'train' ? 'Tempo ćwiczenia (BPM, ćwierćnuta):' : 'Tempo utworu (BPM, ćwierćnuta) – zapisze się w utworze:', String(cur));
+      if (v == null) return; const n = parseFloat(String(v).replace(',', '.')); if (!(n > 0)) { toast('Wpisz liczbę, np. 92'); return; }
+      setTempo(n);
+    };
     $('#btnTap').onclick = tap;
     $('#btnNudgeB').onclick = () => P.nudge(-0.02 * P.rate()); $('#btnNudgeF').onclick = () => P.nudge(0.02 * P.rate());
     $('#btnTempoReset').onclick = () => { if (P.mode === 'train') { $('#speed').value = 100; applySpeed(); } else P.setFactor(1); };
@@ -4453,9 +4519,9 @@ odliczanie: 1
       e.target.value = '';
     };
     $('#btnMarkOne').onclick = () => {
-      if (!A.el || A.el.paused || !P.fileMode()) { toast('Uruchom podkład i naciśnij w chwili pierwszego „raz”'); return; }
+      if (!P.running || FP.paused() || !P.fileMode()) { toast('Uruchom podkład i naciśnij w chwili pierwszego „raz”'); return; }
       const s = songById(P.songId);
-      const now = A.el.currentTime - 0.03;
+      const now = FP.time() - 0.03;
       if (s.barTimes && s.barTimes.length) { const d = now - s.barTimes[0]; s.barTimes = s.barTimes.map(x => x + d); }
       else s.offset = now;
       saveSongs(); stop(); loadSong(P.songId); toast('Takt 1 ustawiony na ' + now.toFixed(2) + ' s');
@@ -4464,7 +4530,13 @@ odliczanie: 1
       const s = songById(P.songId); const v = parseFloat(String(e.target.value).replace(',', '.'));
       if (!isFinite(v)) return; s.offset = v; saveSongs(); const run = P.running; const t = P.now(); loadSong(P.songId, true); if (run) seek(t);
     };
-    const applySpeed = () => { const v = +$('#speed').value; $('#speedVal').textContent = v + '%'; if (P.fileMode()) { A.el.playbackRate = v / 100; P.anchorN = P.now(); P.anchorT = A.ctx.currentTime; } else if (P.mode === 'train') P.setFactor(v / 100); };
+    const applySpeed = () => {
+      const v = +$('#speed').value; $('#speedVal').textContent = v + '%';
+      if (P.fileMode()) {
+        if (P.running) { const n = P.now(); const ts = FP.start(n + (P.song.offset || 0), v / 100); P.anchorN = n; P.anchorT = ts; P.schedN = n - 0.01; }
+        P.factor = v / 100;
+      } else if (P.mode === 'train') P.setFactor(v / 100);
+    };
     $('#speed').oninput = applySpeed;
     $('#loopOn').onchange = e => { P.loop = e.target.checked; markLoop(); };
     $('#loopA').onchange = $('#loopB').onchange = () => { if (+$('#loopB').value < +$('#loopA').value) $('#loopB').value = $('#loopA').value; markLoop(); };
@@ -5571,12 +5643,23 @@ odliczanie: 1
         <button class="btn" data-an="t2">Tempo ×2</button><button class="btn" data-an="t05">Tempo ÷2</button>
         <button class="btn" data-an="s${sub === 3 ? 2 : 3}">${sub === 3 ? 'Ósemki po 2 (4/4, 3/4)' : 'Ósemki po 3 (6/8, 12/8)'}</button></div>
       <pre class="anpre">${esc(text)}</pre>
-      <div class="row"><button class="btn primary" id="anApply">Wstaw do utworu (zastąpi zapis i mapę taktów)</button><button class="btn" id="anDiscard">Odrzuć</button></div>
+      <div class="row"><button class="btn primary" id="anApply">Wstaw do utworu (zastąpi zapis i mapę taktów)</button><button class="btn" id="anMapOnly">Tylko tempo i mapa taktów (zostaw mój zapis)</button><button class="btn" id="anDiscard">Odrzuć</button></div>
       <p class="small muted">Takty, których analiza nie jest pewna, będą obrysowane na siatce taktów. Sprawdź je, słuchając z klikiem według mapy.</p>`;
     box.onclick = e => {
       const b = e.target.closest('[data-an]');
       if (b) { const v = b.dataset.an; const f = AN.opts.tempoFactor || 1; if (v === 't2') runAnalysis({ tempoFactor: f * 2 }); else if (v === 't05') runAnalysis({ tempoFactor: f / 2 }); else runAnalysis({ sub: +v.slice(1) }); return; }
       if (e.target.id === 'anDiscard') { AN.res = null; box.innerHTML = ''; return; }
+      if (e.target.id === 'anMapOnly') {
+        const m = ST.meta; if (!m) return;
+        const own = ST.song ? ST.song.bars.length : 0;
+        m.barTimes = res.bars.map(b2 => Math.round(b2.start * 1000) / 1000);
+        m.offset = m.barTimes[0]; delete m.unsure;
+        const tempi = res.bars.map(b2 => b2.bpm).sort((a, b) => a - b); const med = tempi[Math.floor(tempi.length / 2)];
+        commitText(V.setDirective(editorText(), 'bpm', String(Math.round(med)), 'bpm'));
+        AN.res = null; box.innerHTML = ''; saveSongs(); if (P.songId === m.id) loadSong(m.id, true); renderStudio();
+        toast('Tempo ' + Math.round(med) + ' BPM i mapa ' + res.bars.length + ' taktów z nagrania' + (own && own !== res.bars.length ? ' (Twój zapis ma ' + own + ' taktów – sprawdź, czy się zgadzają)' : ''));
+        return;
+      }
       if (e.target.id === 'anApply') {
         const m = ST.meta; if (!m) return;
         const hasBars = ST.song && ST.song.bars.length > 1;
