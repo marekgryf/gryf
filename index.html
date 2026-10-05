@@ -284,11 +284,27 @@ main.wide { max-width: 1680px; }
 .impbox{border:1px solid var(--accent);border-radius:10px;padding:12px;display:flex;flex-direction:column;gap:10px;background:rgba(255,184,0,.05)}
 .impbox pre{max-height:140px;overflow:auto;font:12px/1.35 var(--mono);background:#0007;padding:8px;border-radius:6px;margin:0;white-space:pre}
 
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{padding:6px 12px;border-radius:7px;border:1px solid var(--line);background:var(--panel-2,#1a1f2b);color:var(--text);font:500 .86rem var(--body);cursor:pointer}
+.chips button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:#111;font-weight:700}
+.scards{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px;max-height:70vh;overflow:auto;padding:2px}
+.scard{border:1px solid var(--line);border-radius:10px;padding:12px;background:var(--panel-2,#161b26);display:flex;flex-direction:column;gap:7px;cursor:pointer;text-align:left;color:var(--text)}
+.scard.cur{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.scard .top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+.scard .nm{font-weight:700;font-size:.98rem}
+.scard.cur .nm{color:var(--accent)}
+.scard .tag{font:500 .7rem var(--mono);border:1px solid var(--line);border-radius:5px;padding:2px 6px;color:var(--mute);white-space:nowrap}
+.scard .ds{font-size:.82rem;color:var(--mute);line-height:1.35}
+.scard .dg{font:600 .85rem var(--mono)}
+.scard .act{align-self:flex-start;font:600 .8rem var(--body);padding:6px 12px;border-radius:7px;border:1px solid var(--line)}
+.scard.cur .act{background:var(--accent);border-color:var(--accent);color:#111}
+.scard .del{color:var(--warn);font-size:.8rem;text-decoration:underline}
+
 </style>
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.1</small></div>
+    <div class="brand">Gryf na żywo<small>skale na gryfie w czasie gry · wersja 2.2</small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -489,8 +505,11 @@ main.wide { max-width: 1680px; }
         <div class="panel">
           <h3>Tonik</h3>
           <div class="roots" id="scRoots"></div>
-          <h3>Skala</h3>
-          <div class="slist grouped" id="scList"></div>
+          <h3>Biblioteka skal</h3>
+          <input type="search" id="scSearch" placeholder="Szukaj skali…">
+          <div class="chips" id="scCats" role="group" aria-label="Kategorie skal"></div>
+          <p class="small muted" id="scCount2"></p>
+          <div class="scards" id="scList"></div>
           <p class="small muted" id="scCount"></p>
         </div>
         <div class="stack" style="gap:14px">
@@ -1071,68 +1090,62 @@ akordy: chwyty     # albo: brzmiące
   }
   for (const [family, pl, en, iv, al] of EXTRA) addScale(family, pl, en, iv, al);
 
-  // Katalog główny – 48 skal w grupach (jak w Scale Teacher); kolejność = kolejność na liście
+  // Katalog główny – 48 skal jak w Scale Teacher: [kategoria, nazwa PL, EN, interwały, stopnie, opis]
+  const CAT_LABEL = { major: 'Dur', minor: 'Moll', pentatonic: 'Pentatoniki', modes: 'Mody', harmonic: 'Harmoniczne', melodic: 'Melodyczne', blues: 'Bluesowe', exotic: 'Egzotyczne', jazz: 'Jazzowe' };
   const CATALOG_DEF = [
-    ['Dur', [['Durowa (jońska)', 'Major', [0, 2, 4, 5, 7, 9, 11]]]],
-    ['Moll', [['Molowa naturalna (eolska)', 'Natural minor', [0, 2, 3, 5, 7, 8, 10]]]],
-    ['Moll harmoniczny i jego mody', [
-      ['Molowa harmoniczna', 'Harmonic minor', [0, 2, 3, 5, 7, 8, 11]],
-      ['Lokrycka z sekstą wielką (♮6)', 'Locrian natural 6', [0, 1, 3, 5, 6, 9, 10]],
-      ['Jońska zwiększona', 'Ionian augmented', [0, 2, 4, 5, 8, 9, 11]],
-      ['Dorycka #4', 'Dorian #4', [0, 2, 3, 6, 7, 9, 10]],
-      ['Frygijska dominantowa', 'Phrygian dominant', [0, 1, 4, 5, 7, 8, 10]],
-      ['Lidyjska #2', 'Lydian #2', [0, 3, 4, 6, 7, 9, 11]],
-      ['Superlokrycka bb7', 'Super locrian bb7', [0, 1, 3, 4, 6, 8, 9]]]],
-    ['Moll melodyczny i jego mody', [
-      ['Molowa melodyczna', 'Melodic minor', [0, 2, 3, 5, 7, 9, 11]],
-      ['Dorycka b2 (frygijska ♮6)', 'Dorian b2', [0, 1, 3, 5, 7, 9, 10]],
-      ['Lidyjska zwiększona', 'Lydian augmented', [0, 2, 4, 6, 8, 9, 11]],
-      ['Lidyjska dominantowa', 'Lydian dominant', [0, 2, 4, 6, 7, 9, 10]],
-      ['Miksolidyjska b6', 'Mixolydian b6', [0, 2, 4, 5, 7, 8, 10]],
-      ['Lokrycka z sekundą wielką (♮2)', 'Locrian natural 2', [0, 2, 3, 5, 6, 8, 10]],
-      ['Superlokrycka (alterowana)', 'Altered', [0, 1, 3, 4, 6, 8, 10]]]],
-    ['Pentatoniki', [
-      ['Pentatonika durowa', 'Major pentatonic', [0, 2, 4, 7, 9]],
-      ['Pentatonika molowa', 'Minor pentatonic', [0, 3, 5, 7, 10]]]],
-    ['Mody (skale kościelne)', [
-      ['Jońska', 'Ionian', [0, 2, 4, 5, 7, 9, 11]],
-      ['Dorycka', 'Dorian', [0, 2, 3, 5, 7, 9, 10]],
-      ['Frygijska', 'Phrygian', [0, 1, 3, 5, 7, 8, 10]],
-      ['Lidyjska', 'Lydian', [0, 2, 4, 6, 7, 9, 11]],
-      ['Miksolidyjska', 'Mixolydian', [0, 2, 4, 5, 7, 9, 10]],
-      ['Eolska', 'Aeolian', [0, 2, 3, 5, 7, 8, 10]],
-      ['Lokrycka', 'Locrian', [0, 1, 3, 5, 6, 8, 10]]]],
-    ['Bluesowe', [
-      ['Bluesowa', 'Blues', [0, 3, 5, 6, 7, 10]],
-      ['Bluesowa durowa', 'Major blues', [0, 2, 3, 4, 7, 9]]]],
-    ['Jazzowe', [
-      ['Bebop dominantowa', 'Bebop dominant', [0, 2, 4, 5, 7, 9, 10, 11]],
-      ['Bebop durowa', 'Bebop major', [0, 2, 4, 5, 7, 8, 9, 11]],
-      ['Bebop molowa', 'Bebop minor', [0, 2, 3, 5, 7, 8, 9, 10]],
-      ['Zmniejszona (cały ton–półton)', 'Diminished whole-half', [0, 2, 3, 5, 6, 8, 9, 11]],
-      ['Zmniejszona (półton–cały ton)', 'Diminished half-whole', [0, 1, 3, 4, 6, 7, 9, 10]],
-      ['Całotonowa', 'Whole tone', [0, 2, 4, 6, 8, 10]]]],
-    ['Egzotyczne', [
-      ['Węgierska molowa', 'Hungarian minor', [0, 2, 3, 6, 7, 8, 11]],
-      ['Węgierska durowa', 'Hungarian major', [0, 3, 4, 6, 7, 9, 10]],
-      ['Podwójnie harmoniczna (bizantyjska)', 'Double harmonic', [0, 1, 4, 5, 7, 8, 11]],
-      ['Perska', 'Persian', [0, 1, 4, 5, 6, 8, 11]],
-      ['Hirajoshi', 'Hirajoshi', [0, 2, 3, 7, 8]],
-      ['In (japońska)', 'In scale', [0, 1, 5, 7, 8]],
-      ['Yo (japońska)', 'Yo scale', [0, 2, 5, 7, 9]],
-      ['Chińska', 'Chinese', [0, 4, 6, 7, 11]],
-      ['Egipska', 'Egyptian', [0, 2, 5, 7, 10]],
-      ['Balijska', 'Balinese', [0, 1, 3, 7, 8]],
-      ['Enigmatyczna', 'Enigmatic', [0, 1, 4, 6, 8, 10, 11]],
-      ['Neapolitańska durowa', 'Neapolitan major', [0, 1, 3, 5, 7, 9, 11]],
-      ['Neapolitańska molowa', 'Neapolitan minor', [0, 1, 3, 5, 7, 8, 11]],
-      ['Prometejska', 'Prometheus', [0, 2, 4, 6, 9, 10]],
-      ['Arabska', 'Arabian', [0, 2, 4, 5, 6, 8, 10]]]],
+    ['major', 'Durowa (jońska)', 'Major (Ionian)', [0, 2, 4, 5, 7, 9, 11], '1 2 3 4 5 6 7', 'Podstawa muzyki zachodniej – jasna i radosna. Pop, rock, muzyka klasyczna, country.'],
+    ['minor', 'Molowa naturalna (eolska)', 'Natural Minor (Aeolian)', [0, 2, 3, 5, 7, 8, 10], '1 2 b3 4 5 b6 b7', 'Równoległa molowa do durowej – smutna, zamyślona. Rock, metal, klasyka, folk.'],
+    ['harmonic', 'Molowa harmoniczna', 'Harmonic Minor', [0, 2, 3, 5, 7, 8, 11], '1 2 b3 4 5 b6 7', 'Molowa naturalna z podwyższonym 7. stopniem – egzotyczna, bliskowschodnia. Klasyka, metal, flamenco.'],
+    ['melodic', 'Molowa melodyczna', 'Melodic Minor', [0, 2, 3, 5, 7, 9, 11], '1 2 b3 4 5 6 7', 'Molowa z podwyższonym 6. i 7. stopniem – jazzowa, wyrafinowana. Jazz, fusion.'],
+    ['pentatonic', 'Pentatonika durowa', 'Major Pentatonic', [0, 2, 4, 7, 9], '1 2 3 5 6', 'Pięciodźwiękowa durowa – zawsze brzmi dobrze. Country, blues, rock, pop.'],
+    ['pentatonic', 'Pentatonika molowa', 'Minor Pentatonic', [0, 3, 5, 7, 10], '1 b3 4 5 b7', 'Bluesowe „pudełko” – podstawa gitary rockowej i bluesowej.'],
+    ['modes', 'Jońska', 'Ionian', [0, 2, 4, 5, 7, 9, 11], '1 2 3 4 5 6 7', 'Modus 1 – to samo co skala durowa, najjaśniejszy modus.'],
+    ['modes', 'Dorycka', 'Dorian', [0, 2, 3, 5, 7, 9, 10], '1 2 b3 4 5 6 b7', 'Modus 2 – molowa z wielką sekstą, jazzowo-funkowa (Santana).'],
+    ['modes', 'Frygijska', 'Phrygian', [0, 1, 3, 5, 7, 8, 10], '1 b2 b3 4 5 b6 b7', 'Modus 3 – hiszpańsko-flamenkowa, z małą sekundą. Metal, flamenco.'],
+    ['modes', 'Lidyjska', 'Lydian', [0, 2, 4, 6, 7, 9, 11], '1 2 3 #4 5 6 7', 'Modus 4 – senna, unosząca się, z podwyższoną kwartą. Muzyka filmowa, prog rock.'],
+    ['modes', 'Miksolidyjska', 'Mixolydian', [0, 2, 4, 5, 7, 9, 10], '1 2 3 4 5 6 b7', 'Modus 5 – dominantowa, świetna do blues-rocka i muzyki celtyckiej.'],
+    ['modes', 'Eolska', 'Aeolian', [0, 2, 3, 5, 7, 8, 10], '1 2 b3 4 5 b6 b7', 'Modus 6 – to samo co molowa naturalna, ponura i emocjonalna.'],
+    ['modes', 'Lokrycka', 'Locrian', [0, 1, 3, 5, 6, 8, 10], '1 b2 b3 4 b5 b6 b7', 'Modus 7 – zmniejszona, niestabilna i mroczna. Metal, nowoczesny jazz.'],
+    ['harmonic', 'Lokrycka z sekstą wielką (♮6)', 'Locrian Natural 6', [0, 1, 3, 5, 6, 9, 10], '1 b2 b3 4 b5 6 b7', 'Modus 2 molowej harmonicznej – półzmniejszona z jasną sekstą. Jazz.'],
+    ['harmonic', 'Jońska zwiększona', 'Ionian Augmented', [0, 2, 4, 5, 8, 9, 11], '1 2 3 4 #5 6 7', 'Modus 3 molowej harmonicznej – durowa z podwyższoną kwintą. Muzyka filmowa, neoklasyczny metal.'],
+    ['harmonic', 'Dorycka #4 (rumuńska)', 'Dorian #4', [0, 2, 3, 6, 7, 9, 10], '1 2 b3 #4 5 6 b7', 'Modus 4 molowej harmonicznej – skala rumuńska. Folk wschodnioeuropejski, fusion.'],
+    ['harmonic', 'Frygijska dominantowa', 'Phrygian Dominant', [0, 1, 4, 5, 7, 8, 10], '1 b2 3 4 5 b6 b7', 'Modus 5 molowej harmonicznej – hiszpańska/bliskowschodnia. Flamenco, metal.'],
+    ['harmonic', 'Lidyjska #2', 'Lydian #2', [0, 3, 4, 6, 7, 9, 11], '1 #2 3 #4 5 6 7', 'Modus 6 molowej harmonicznej – bardzo egzotyczna. Neoklasyka, awangardowy jazz.'],
+    ['harmonic', 'Superlokrycka bb7', 'Super Locrian bb7', [0, 1, 3, 4, 6, 8, 9], '1 b2 b3 b4 b5 b6 bb7', 'Modus 7 molowej harmonicznej (ultralokrycka) – najbardziej dysonansowa.'],
+    ['melodic', 'Dorycka b2 (frygijska ♮6)', 'Dorian b2 (Phrygian #6)', [0, 1, 3, 5, 7, 9, 10], '1 b2 b3 4 5 6 b7', 'Modus 2 molowej melodycznej – frygijski mrok i dorycka jasność. Jazz, fusion.'],
+    ['melodic', 'Lidyjska zwiększona', 'Lydian Augmented', [0, 2, 4, 6, 8, 9, 11], '1 2 3 #4 #5 6 7', 'Modus 3 molowej melodycznej – jasna i napięta. Muzyka filmowa, prog rock.'],
+    ['melodic', 'Lidyjska dominantowa', 'Lydian Dominant', [0, 2, 4, 6, 7, 9, 10], '1 2 3 #4 5 6 b7', 'Modus 4 molowej melodycznej (skala alikwotowa). Jazz fusion, funk.'],
+    ['melodic', 'Miksolidyjska b6', 'Mixolydian b6', [0, 2, 4, 5, 7, 8, 10], '1 2 3 4 5 b6 b7', 'Modus 5 molowej melodycznej (hinduska). Muzyka indyjska, jazz.'],
+    ['melodic', 'Lokrycka z sekundą wielką (♮2)', 'Locrian Natural 2', [0, 2, 3, 5, 6, 8, 10], '1 2 b3 4 b5 b6 b7', 'Modus 6 molowej melodycznej – półzmniejszona. Najlepsza na akordy m7b5.'],
+    ['melodic', 'Superlokrycka (alterowana)', 'Super Locrian (Altered)', [0, 1, 3, 4, 6, 8, 10], '1 b2 b3 b4 b5 b6 b7', 'Modus 7 molowej melodycznej – alterowana dominanta, maksymalne napięcie. Jazz.'],
+    ['blues', 'Bluesowa', 'Blues Scale', [0, 3, 5, 6, 7, 10], '1 b3 4 b5 5 b7', 'Pentatonika molowa z „blue note” (b5). Blues, rock, jazz.'],
+    ['blues', 'Bluesowa durowa', 'Major Blues', [0, 2, 3, 4, 7, 9], '1 2 b3 3 5 6', 'Pentatonika durowa z małą tercją. Country blues, rockabilly, rock and roll.'],
+    ['jazz', 'Bebop dominantowa', 'Bebop Dominant', [0, 2, 4, 5, 7, 9, 10, 11], '1 2 3 4 5 6 b7 7', 'Miksolidyjska z dźwiękiem przejściowym – podstawowa skala jazzu. Swing, bebop.'],
+    ['jazz', 'Bebop durowa', 'Bebop Major', [0, 2, 4, 5, 7, 8, 9, 11], '1 2 3 4 5 b6 6 7', 'Durowa z dodaną b6 – na akordy 6 i maj7.'],
+    ['jazz', 'Bebop molowa', 'Bebop Minor', [0, 2, 3, 5, 7, 8, 9, 10], '1 2 b3 4 5 b6 6 b7', 'Dorycka z dodaną b6 – płynne linie na akordach m7.'],
+    ['jazz', 'Zmniejszona (cały ton–półton)', 'Diminished (Whole-Half)', [0, 2, 3, 5, 6, 8, 9, 11], '1 2 b3 4 b5 b6 6 7', 'Symetryczna: cały ton, półton na przemian – na akordy zmniejszone.'],
+    ['jazz', 'Zmniejszona (półton–cały ton)', 'Diminished (Half-Whole)', [0, 1, 3, 4, 6, 7, 9, 10], '1 b2 b3 3 b5 5 6 b7', 'Symetryczna: półton, cały ton na przemian – na dominanty 7b9.'],
+    ['jazz', 'Całotonowa', 'Whole Tone', [0, 2, 4, 6, 8, 10], '1 2 3 #4 #5 b7', 'Same całe tony – senna, niejednoznaczna. Na akordy zwiększone.'],
+    ['exotic', 'Węgierska molowa (cygańska)', 'Hungarian Minor', [0, 2, 3, 6, 7, 8, 11], '1 2 b3 #4 5 b6 7', 'Skala cygańska – dramatyczna, wschodnioeuropejska. Gypsy jazz, flamenco.'],
+    ['exotic', 'Węgierska durowa', 'Hungarian Major', [0, 3, 4, 6, 7, 9, 10], '1 #2 3 #4 5 6 b7', 'Jasna, egzotyczna odmiana durowej z sekundą zwiększoną.'],
+    ['exotic', 'Podwójnie harmoniczna (bizantyjska)', 'Double Harmonic (Byzantine)', [0, 1, 4, 5, 7, 8, 11], '1 b2 3 4 5 b6 7', 'Brzmienie arabskie/bizantyjskie – dwie sekundy zwiększone.'],
+    ['exotic', 'Perska', 'Persian', [0, 1, 4, 5, 6, 8, 11], '1 b2 3 4 b5 b6 7', 'Dawna skala perska – nawiedzona, rzadko słyszana na Zachodzie.'],
+    ['exotic', 'Hirajoshi', 'Hirajoshi', [0, 2, 3, 7, 8], '1 2 b3 5 b6', 'Japońska pentatonika – melancholijna i eteryczna.'],
+    ['exotic', 'In (japońska)', 'In Scale', [0, 1, 5, 7, 8], '1 b2 4 5 b6', 'Japońska skala „Sakura” – tradycyjna i delikatna.'],
+    ['exotic', 'Yo (japońska)', 'Yo Scale', [0, 2, 5, 7, 9], '1 2 4 5 6', 'Japońska skala ludowa – jasna, pasterska, bez półtonów.'],
+    ['exotic', 'Chińska', 'Chinese Scale', [0, 4, 6, 7, 11], '1 3 #4 5 7', 'Tradycyjna pentatonika chińska z podwyższoną kwartą.'],
+    ['exotic', 'Egipska', 'Egyptian', [0, 2, 5, 7, 10], '1 2 4 5 b7', 'Pentatonika zawieszona – bez tercji, pradawna i tajemnicza.'],
+    ['exotic', 'Balijska', 'Balinese', [0, 1, 3, 7, 8], '1 b2 b3 5 b6', 'Inspirowana gamelanem – skupiska półtonów i pusta kwinta.'],
+    ['exotic', 'Enigmatyczna', 'Enigmatic', [0, 1, 4, 6, 8, 10, 11], '1 b2 3 #4 #5 b7 7', 'Wymyślona przez Verdiego – tajemnicza i chromatyczna.'],
+    ['exotic', 'Neapolitańska durowa', 'Neapolitan Major', [0, 1, 3, 5, 7, 9, 11], '1 b2 b3 4 5 6 7', 'Klasyczna skala włoska – romantyczna i melancholijna.'],
+    ['exotic', 'Neapolitańska molowa', 'Neapolitan Minor', [0, 1, 3, 5, 7, 8, 11], '1 b2 b3 4 5 b6 7', 'Molowa harmoniczna z małą sekundą. Klasyka, neoklasyczny metal.'],
+    ['exotic', 'Prometejska', 'Prometheus', [0, 2, 4, 6, 9, 10], '1 2 3 #4 6 b7', 'Mistyczna skala Skriabina – eteryczna i nowoczesna.'],
+    ['exotic', 'Arabska', 'Arabian', [0, 2, 4, 5, 6, 8, 10], '1 2 3 4 b5 b6 b7', 'Inspirowana makamami – z charakterystycznym trytonem.'],
   ];
-  const CATALOG = []; // {cat, pl, en, mask, scale}
-  for (const [cat, list] of CATALOG_DEF) for (const [pl, en, iv] of list) {
-    const sc = addScale(cat, pl, en, iv, [pl, en]);
-    CATALOG.push({ cat, pl, en, mask: sc.mask, scale: sc });
+  const CATALOG = []; // {cat, catPl, pl, en, mask, deg, desc, scale}
+  for (const [cat, pl, en, iv, deg, desc] of CATALOG_DEF) {
+    const sc = addScale(CAT_LABEL[cat], pl, en, iv, [pl, en]);
+    CATALOG.push({ cat, catPl: CAT_LABEL[cat], pl, en, mask: sc.mask, deg, desc, scale: sc });
   }
   // nazwa wyświetlana: pierwsza nazwa z katalogu (np. „Dorycka”, „Durowa (jońska)”)
   const CAT_NAME = new Map();
@@ -2020,7 +2033,7 @@ akordy: chwyty     # albo: brzmiące
     applyTiming, lineTokens, rewriteTokens, composeToken, setDirective,
     transposeChord, parseShape, shapeText, chordVoicings, assignVoicings, voicingState,
     addScale, ALIAS, SHARP, FLAT, INTERVAL_NAMES, parseNote, noteName, maskFromIntervals, intervalsFromMask, rotateMask, bitCount, norm,
-    addChordType, removeChordType, CHORD_TYPES,
+    addChordType, removeChordType, CHORD_TYPES, CAT_LABEL,
     SCALES, ALL_SETS, BY_MASK, CATALOG, inCatalog, findScale, scaleByMask, formula, parseChord, roleClass, autoScaleFor, scalesContaining,
     parseKey, parseMeter, parseDur, parseTempo, parseSong, barAtSec, eventAtSec, positionAt, pulsesBetween, TUNINGS, fretState, FLAT_ROOTS
   };
@@ -2299,7 +2312,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '2.1';
+  const VERSION = '2.2';
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
   /* ---------- pamięć ---------- */
@@ -3718,29 +3731,35 @@ odliczanie: 1
 
   /* ================= WIDOK: SKALE ================= */
   const SC = { root: 0, mask: V.findScale('dorian').mask, limit: 250, deg: 3, chordShown: null };
-  // lista skal: katalog 48 skal w grupach + własne
-  function catalogGroups() {
-    const g = []; let cur = null;
-    for (const c of V.CATALOG) { if (!cur || cur.cat !== c.cat) { cur = { cat: c.cat, items: [] }; g.push(cur); } cur.items.push({ pl: c.pl, mask: c.mask }); }
-    if (customScales.length) g.push({ cat: 'Własne', items: customScales.map((c, i) => ({ pl: c.name, mask: c.mask, custom: i })) });
-    return g;
+  // biblioteka skal jak w Scale Teacher: wyszukiwarka, kategorie, karty
+  const SC_CATS = [['all', 'Wszystkie'], ['major', 'Dur'], ['minor', 'Moll'], ['pentatonic', 'Pentatoniki'], ['modes', 'Mody'], ['harmonic', 'Harmoniczne'], ['melodic', 'Melodyczne'], ['blues', 'Bluesowe'], ['exotic', 'Egzotyczne'], ['jazz', 'Jazzowe'], ['custom', 'Własne']];
+  function libraryItems() {
+    const out = V.CATALOG.map((c, i) => ({ key: 'c' + i, cat: c.cat, tag: c.cat, pl: c.pl, en: c.en, mask: c.mask, deg: c.deg, desc: c.desc }));
+    customScales.forEach((c, i) => out.push({ key: 'u' + i, cat: 'custom', tag: 'własna', pl: c.name, en: '', mask: c.mask, deg: V.formula(c.mask), desc: 'Twoja skala.', custom: i }));
+    return out;
   }
   function renderScaleList() {
-    const fl = m => spellFlat(SC.root, m, V.FLAT_ROOTS.has(SC.root) && SC.root !== 6);
-    let curSeen = false;
-    $('#scList').innerHTML = catalogGroups().map(g => `<div class="sgroup"><h4>${esc(g.cat)}</h4>${g.items.map(it => {
-      const cur = it.mask === SC.mask && !curSeen; if (cur) curSeen = true;
-      return `<button data-mask="${it.mask}"${cur ? ' aria-current="true"' : ''}><span class="nm">${esc(it.pl)}</span><span class="fm">${esc(prettyAcc(V.formula(it.mask)))} · ${esc(V.intervalsFromMask(it.mask).map(i => prettyAcc(V.noteName(SC.root + i, fl(it.mask)))).join(' '))}</span>${it.custom != null ? `<span class="fa"><span class="link" data-delcustom="${it.custom}">usuń</span></span>` : ''}</button>`;
-    }).join('')}</div>`).join('');
-    $('#scCount').textContent = V.CATALOG.length + ' skal w katalogu' + (customScales.length ? ' + ' + customScales.length + ' własnych' : '');
+    SC.cat = SC.cat || 'all';
+    $('#scCats').innerHTML = SC_CATS.map(([k, l]) => `<button data-cat="${k}" aria-pressed="${SC.cat === k}">${l}</button>`).join('');
+    const q = V.norm($('#scSearch').value || '');
+    let list = libraryItems().filter(it => SC.cat === 'all' || it.cat === SC.cat);
+    if (q) list = list.filter(it => V.norm(it.pl).includes(q) || V.norm(it.en).includes(q) || V.norm(it.desc).includes(q));
+    if (!SC.curKey || !libraryItems().some(it => it.key === SC.curKey && it.mask === SC.mask)) { const f = libraryItems().find(it => it.mask === SC.mask); SC.curKey = f ? f.key : null; }
+    $('#scCount2').textContent = list.length + (list.length === 1 ? ' skala' : list.length < 5 && list.length > 1 ? ' skale' : ' skal');
+    $('#scList').innerHTML = list.map(it => {
+      const cur = it.key === SC.curKey;
+      return `<div class="scard${cur ? ' cur' : ''}" data-key="${it.key}" data-mask="${it.mask}" role="button" tabindex="0"><div class="top"><span class="nm">${esc(it.pl)}</span><span class="tag">${esc(it.tag === 'własna' ? 'własna' : V.CAT_LABEL[it.tag].toLowerCase())}</span></div>${it.en ? `<span class="small muted">${esc(it.en)}</span>` : ''}<span class="ds">${esc(it.desc)}</span><span class="dg">${esc(prettyAcc(it.deg))}</span><div class="row" style="justify-content:space-between"><span class="act">${cur ? 'Wybrana' : 'Pokaż na gryfie'}</span>${it.custom != null ? `<span class="del" data-delcustom="${it.custom}">usuń</span>` : ''}</div></div>`;
+    }).join('') || '<p class="small muted">Brak skal dla tego wyszukiwania.</p>';
+    $('#scCount').textContent = '';
   }
   function renderScaleDetail() {
     const named = V.BY_MASK.get(SC.mask);
     const s = V.scaleByMask(SC.mask);
     const flat = spellFlat(SC.root, SC.mask, V.FLAT_ROOTS.has(SC.root) && SC.root !== 6);
-    $('#scName').textContent = prettyAcc(V.noteName(SC.root, flat)) + ' ' + (named ? named.pl : s.pl + ' (bez nazwy)');
-    $('#scAlt').textContent = named ? [named.en, ...named.alt].filter(Boolean).join(' · ') : 'Układ spoza katalogu nazw.';
-    $('#scTags').innerHTML = [s.size + ' dźwięków', s.family, 'nr ' + SC.mask].map(t => `<span class="tag">${esc(t)}</span>`).join('');
+    const li = libraryItems().find(it => it.key === SC.curKey && it.mask === SC.mask) || libraryItems().find(it => it.mask === SC.mask);
+    $('#scName').textContent = prettyAcc(V.noteName(SC.root, flat)) + ' ' + (li ? li.pl : named ? named.pl : s.pl + ' (bez nazwy)');
+    $('#scAlt').textContent = li ? [li.en, li.desc].filter(Boolean).join(' · ') + (li.deg ? ' · ' + prettyAcc(li.deg) : '') : named ? [named.en, ...named.alt].filter(Boolean).join(' · ') : 'Układ spoza katalogu – zapisz go jako własną skalę.';
+    $('#scTags').innerHTML = [s.size + ' dźwięków', li ? (li.cat === 'custom' ? 'własna' : V.CAT_LABEL[li.cat]) : s.family].map(t => `<span class="tag">${esc(t)}</span>`).join('');
     $('#scIvs').innerHTML = V.INTERVAL_NAMES.map((n, i) => `<button data-iv="${i}" aria-pressed="${!!(SC.mask & (1 << i))}" class="${i === 0 ? 'root' : ''}">${esc(prettyAcc(n))}<br><span style="font-weight:400;opacity:.8">${esc(prettyAcc(V.noteName(SC.root + i, flat)))}</span></button>`).join('');
     const ch = SC.chordShown;
     const win = SC.pos && SC.pos.size ? V.positionMap(SC.mask, SC.root, tuningArr(), SC.pos, S.frets) : null;
@@ -3813,11 +3832,13 @@ odliczanie: 1
     };
     $('#scRoots').innerHTML = V.SHARP.map((n, i) => `<button data-root="${i}" aria-pressed="${i === SC.root}">${esc(prettyAcc(V.FLAT_ROOTS.has(i) && i !== 6 ? V.FLAT[i] : n))}</button>`).join('');
     $('#scRoots').onclick = e => { const b = e.target.closest('[data-root]'); if (!b) return; SC.root = +b.dataset.root; SC.chordShown = null; $$('#scRoots button').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderScaleDetail(); };
+    $('#scCats').onclick = e => { const b = e.target.closest('[data-cat]'); if (!b) return; SC.cat = b.dataset.cat; renderScaleList(); };
+    $('#scSearch').oninput = () => renderScaleList();
     $('#scList').onclick = e => {
       const del = e.target.closest('[data-delcustom]');
       if (del) { e.stopPropagation(); const c = customScales[+del.dataset.delcustom]; if (c && confirm('Usunąć własną skalę „' + c.name + '”?')) { customScales.splice(+del.dataset.delcustom, 1); store.set('customScales', customScales); renderScaleList(); } return; }
-      const b = e.target.closest('button[data-mask]'); if (!b) return;
-      SC.mask = +b.dataset.mask; SC.chordShown = null; renderScaleDetail(); renderScaleList();
+      const b = e.target.closest('[data-mask]'); if (!b) return;
+      SC.mask = +b.dataset.mask; SC.curKey = b.dataset.key; SC.chordShown = null; renderScaleDetail(); renderScaleList();
       if (window.innerWidth < 900) $('#scName').scrollIntoView({ behavior: 'smooth', block: 'start' });
     };
     $('#scIvs').onclick = e => { const b = e.target.closest('[data-iv]'); if (!b) return; const i = +b.dataset.iv; if (i === 0) return; SC.mask ^= (1 << i); SC.chordShown = null; renderScaleDetail(); };
