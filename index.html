@@ -364,7 +364,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.5</span></small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.6</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -799,6 +799,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
               <div class="row">
                 <button class="btn primary" id="soPlay">▶ Graj solo z podkładem</button>
                 <span class="small mono grow" id="soPlayPos">od taktu 1</span>
+                <label class="chk" title="Metronom podczas grania solo (osobno: bez podkładu i z podkładem)"><input type="checkbox" id="soClick"> Klik</label>
                 <label class="f">Brzmienie <select id="soTone"><option value="overdrive">przester (blues, rock)</option><option value="clean">czyste (pop, jazz)</option><option value="dist">mocny przester (prog, alt)</option></select></label>
               </div>
               <div class="row">
@@ -814,7 +815,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
                   <button data-soled="uklad" aria-pressed="false" title="Pozycje skal z Twoimi zmianami – klikaj dźwięki na gryfie poniżej">układy harmoniczne</button>
                 </div>
               </div>
-              <p class="small muted">Gra od taktu wybranego wyżej. Pauza zatrzymuje podkład i solo w miejscu, w którym jesteś – kursor staje na granym dźwięku, możesz go od razu poprawić i grać dalej. Bez podkładu solo gra z klikiem. Brzmienie: sample gitar z soundfontu Musyng Kite (CC BY-SA 3.0).</p>
+              <p class="small muted">Gra od taktu wybranego wyżej. Pauza zatrzymuje podkład i solo w miejscu, w którym jesteś – kursor staje na granym dźwięku, możesz go od razu poprawić i grać dalej. Klik włączasz i wyłączasz obok przycisku grania (osobno dla grania z podkładem i bez). Brzmienie: sample gitar z soundfontu Musyng Kite (CC BY-SA 3.0).</p>
             </div>
             <div class="se-pal" id="sePal">
               <div class="row">
@@ -4396,7 +4397,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.0.5';
+  const VERSION = '3.0.6';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -7078,7 +7079,8 @@ akordy: chwyty     # albo: brzmiące
   function spResumable() { return SP.resume != null && SP.resumeBar === SO.bar && Math.abs(SP.resumeCur - SO.cur) < 1e-6; }
   function spUi() {
     const b = $('#soPlay'); if (!b) return;
-    b.textContent = SP.on ? '⏸ Pauza' : spResumable() ? '▶ Graj dalej' : (ST.el && !ST.missing && ST.meta && ST.meta.audio ? '▶ Graj solo z podkładem' : '▶ Graj solo z klikiem');
+    b.textContent = SP.on ? '⏸ Pauza' : spResumable() ? '▶ Graj dalej' : (ST.el && !ST.missing && ST.meta && ST.meta.audio ? '▶ Graj solo z podkładem' : '▶ Graj solo');
+    if (SP.clkUi) SP.clkUi();
     b.classList.toggle('primary', !SP.on);
     if (!SP.on) $('#soPlayPos').textContent = 'od taktu ' + (SO.bar + 1) + (SO.cur ? ', miara ' + (Math.round(SO.cur * 100) / 100 + 1) : '');
   }
@@ -7097,7 +7099,7 @@ akordy: chwyty     # albo: brzmiące
     const hasEl = ST.el && !ST.missing && ST.meta && ST.meta.audio;
     if (hasEl) {
       stop(); GTR.routeBacking(ST.el);
-      ST.el.currentTime = Math.max(0, t + (sg.offset || 0)); ST.clickT = t; SP.mode = 'el';
+      ST.el.currentTime = Math.max(0, t + (sg.offset || 0)); ST.clickT = t; SP.clickT = t; SP.mode = 'el';
       try { await ST.el.play(); } catch (e) { toast('Nie mogę odtworzyć podkładu: ' + e.message); return; }
     } else { stop(); SP.mode = 'clock'; SP.startCtx = A.ctx.currentTime + 0.15; SP.startSong = t; SP.clickT = t; }
     SP.on = true; spUi(); requestAnimationFrame(spTick);
@@ -7133,7 +7135,7 @@ akordy: chwyty     # albo: brzmiące
       SP.voices[n.s] = GTR.play(SP.kind, when, midi, dur, { bd: n.bd, bt: n.bt, vb: n.vb, lg: n.lg, prevMidi: SP.prevMidi });
       SP.prevMidi = midi;
     }
-    if (SP.mode === 'clock' && SP.clickT < ahead) { for (const p of V.pulsesBetween(sg, SP.clickT, ahead, {})) { const at = now + (p.t - t); if (at > now) A.click(at, p.level); } SP.clickT = ahead; }
+    if (SP.clickT < ahead) { if (SP.mode === 'clock' ? S.soClick !== false : !!S.soClickBack) for (const p of V.pulsesBetween(sg, SP.clickT, ahead, {})) { const at = now + (p.t - t) / rate; if (at > now) A.click(at, p.level); } SP.clickT = ahead; }
     // śledzenie: takt, kursor, grające dźwięki
     const bi = Math.max(0, Math.min(sg.bars.length - 1, V.barAtSec(sg, Math.max(0, t)))); const b = sg.bars[bi];
     const q = (t - b.startSec) / b.secPerQ;
@@ -7223,6 +7225,9 @@ akordy: chwyty     # albo: brzmiące
   }
   function bindSolo() {
     $('#soPlay').onclick = () => { if (SP.on) spPause(); else spStart(); };
+    const clk = () => { const back = !!(ST.el && !ST.missing && ST.meta && ST.meta.audio); $('#soClick').checked = back ? !!S.soClickBack : S.soClick !== false; };
+    $('#soClick').onchange = e => { const back = !!(ST.el && !ST.missing && ST.meta && ST.meta.audio); if (back) S.soClickBack = e.target.checked; else S.soClick = e.target.checked; save(); };
+    SP.clkUi = clk; clk();
     $('#soVolBack').value = S.soVolBack ?? 80; $('#soVolSolo').value = S.soVolSolo ?? 80; $('#soTone').value = S.soTone || 'overdrive';
     $('#soVolBack').oninput = e => { S.soVolBack = +e.target.value; save(); GTR.vol(); };
     $('#soVolSolo').oninput = e => { S.soVolSolo = +e.target.value; save(); GTR.vol(); };
