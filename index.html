@@ -413,7 +413,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.3.0</span></small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.4.0</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -945,6 +945,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
                 <label class="f">Poziom <select id="soGenLevel"><option value="1">prosta</option><option value="2" selected>średnio zaawansowana</option><option value="3">zaawansowana</option><option value="4">mistrzowska</option></select></label>
                 <label class="f" style="width:80px">Od taktu <input type="number" id="soGenFrom" min="1" value="1"></label>
                 <label class="f" style="width:80px">Do taktu <input type="number" id="soGenTo" min="1" value="1"></label>
+                <label class="f">Dramaturgia <select id="soGenArc"><option value="rise">narastająca – szczyt w ¾</option><option value="gentle">łagodna – bez wielkiego szczytu</option><option value="two">dwa szczyty</option></select></label>
               </div>
               <div class="row">
                 <label class="chk"><input type="checkbox" id="soGenLicks" checked> korzystaj z biblioteki licków</label>
@@ -953,12 +954,13 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
               <div class="row">
                 <button class="btn primary" id="soGenGo">Ułóż solo</button>
                 <button class="btn" id="soGenAgain" disabled>Inna wersja</button>
+                <button class="btn" id="soGenMotif" title="Zaznacz 2–8 nut na pięciolinii – generator zbuduje z nich całe solo (motyw, sekwencje, inwersja, kulminacja, powrót)">Rozwiń mój motyw</button>
                 <button class="btn" id="soLibAdd">Dodaj tabulatury do biblioteki licków…</button>
                 <input type="file" id="soLibFile" multiple accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.pdf,.txt,.tab,application/pdf,text/plain" hidden>
                 <button class="btn danger" id="soLibClear">Wyczyść bibliotekę</button>
               </div>
               <div class="small" id="soGenInfo"></div>
-              <p class="small muted">Poziomy: <b>prosta</b> – pentatonika w jednej pozycji, ćwierćnuty i ósemki, pojedyncze podciągnięcia; <b>średnio zaawansowana</b> – dwie pozycje, triole, podciągnięcia z powrotem, hammer-on/pull-off, slajdy, dźwięki przejściowe; <b>zaawansowana</b> – trzy pozycje, szesnastki, prebendy, kolor skali na długich akordach; <b>mistrzowska</b> – cały gryf, szybkie przebiegi, napięcia. Jeśli poziom wymaga innej skali na akordzie (np. harmonicznej na E7 w a-moll), zmiana trafia też do akordów powyżej – ale tylko tam, gdzie przy akordzie nie ma wpisanej skali. Skal ustawionych przez Ciebie (albo przyciskiem „Ułóż skale frazami”) generator nigdy nie zmienia. Zapis: <span class="mono">7b9</span> podciągnięcie do brzmienia 9. progu, <span class="mono">7b9r7</span> z powrotem, <span class="mono">9pb11r9</span> prebend, <span class="mono">h p /</span> hammer-on, pull-off, slajd, <span class="mono">~</span> vibrato. Na diodach przy podciągnięciu dociskany próg świeci kolorem palca, a próg docelowy mruga przygaszony.</p>
+              <p class="small muted"><b>Jak powstaje solo:</b> jeden motyw (3–6 dźwięków) zapisany w stopniach skali, plan dramaturgii (ekspozycja → rozwinięcie → kulminacja → rozwiązanie), operatory rozwijania (powtórzenie, sekwencja na nowy akord, inwersja, augmentacja, fragmentacja, ozdobienie), dźwięki akordu na mocnych częściach, cel każdej frazy prowadzony krokiem do następnego akordu. Powstaje 40 kandydatów, a krytyk ocenia krokowość, odzyskiwanie skoków, powtarzalność motywu, oddech, położenie szczytu i zakończenia – wygrywa najlepszy. „Rozwiń mój motyw”: Ty dajesz 2–8 nut, program robi rzemiosło.<br>Poziomy: <b>prosta</b> – pentatonika w jednej pozycji, ćwierćnuty i ósemki, pojedyncze podciągnięcia; <b>średnio zaawansowana</b> – dwie pozycje, triole, podciągnięcia z powrotem, hammer-on/pull-off, slajdy, dźwięki przejściowe; <b>zaawansowana</b> – trzy pozycje, szesnastki, prebendy, kolor skali na długich akordach; <b>mistrzowska</b> – cały gryf, szybkie przebiegi, napięcia. Jeśli poziom wymaga innej skali na akordzie (np. harmonicznej na E7 w a-moll), zmiana trafia też do akordów powyżej – ale tylko tam, gdzie przy akordzie nie ma wpisanej skali. Skal ustawionych przez Ciebie (albo przyciskiem „Ułóż skale frazami”) generator nigdy nie zmienia. Zapis: <span class="mono">7b9</span> podciągnięcie do brzmienia 9. progu, <span class="mono">7b9r7</span> z powrotem, <span class="mono">9pb11r9</span> prebend, <span class="mono">h p /</span> hammer-on, pull-off, slajd, <span class="mono">~</span> vibrato. Na diodach przy podciągnięciu dociskany próg świeci kolorem palca, a próg docelowy mruga przygaszony.</p>
             </details>
             <div class="soplay">
               <div class="row">
@@ -3641,7 +3643,439 @@ akordy: chwyty     # albo: brzmiące
     return t;
   }
 
-  G.SOLOGEN = { generate, extractLicks, techText, BUILTIN, LEVELS, STYLES, estimateKey, setBook, get BOOK() { return BOOK; } };
+  G.SOLOGEN = { generate, extractLicks, techText, BUILTIN, LEVELS, STYLES, estimateKey, setBook, get BOOK() { return BOOK; }, _int: { harmonyOf, scaleChanges, windowsFor, cellsIn, rngOf, wpick, mod, swingify, STYLE_MAP } };
+})(typeof window !== 'undefined' ? window : globalThis);
+
+/* ================= SOLOCOMP – kompozytor solówek: plan dramaturgii → motyw → rozwinięcie → krytyk =================
+   Zasada: solo to opowieść zbudowana z JEDNEGO–DWÓCH motywów, a nie ciąg losowych dźwięków.
+   1. Plan: ekspozycja → rozwinięcie → kulminacja (ok. 70%) → rozwiązanie; każda fraza ma rolę, rejestr, gęstość i cel harmoniczny.
+   2. Motyw: 3–6 dźwięków z wyrazistym rytmem, zapisany w STOPNIACH skali względem dźwięku akordu (kotwicy) – da się go przenieść na każdy akord.
+   3. Operatory: powtórzenie, sekwencja na nowy akord, inwersja, augmentacja/dyminucja, fragmentacja, przesunięcie, ozdobienie, zmiana oktawy, retrogradacja.
+   4. Harmonia: mocne części = dźwięki akordu, ostatni dźwięk frazy = cel (dźwięk akordu) prowadzony krokiem do następnego akordu.
+   5. Krytyk: kilkadziesiąt kandydatów ocenianych cechami (krokowość, odzyskanie skoku, powtarzalność motywu, oddech, szczyt, ambitus, zakończenia). */
+(function (G) {
+  const V = G.VF; const SG = () => G.SOLOGEN._int;
+  const mod = (a, n) => ((a % n) + n) % n;
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+
+  // ---------- rytmiczne „DNA” motywów (w miarach; suma = długość motywu w miarach) ----------
+  const MOTIF_RHYTHMS = {
+    // [komórka, waga, minimalny poziom]
+    sing: [[[0.5, 0.5, 1], 3, 1], [[0.5, 1, 0.5], 2, 1], [[1, 0.5, 0.5], 2, 1], [[0.5, 0.5, 0.5, 1.5], 2.5, 1], [[1, 1, 2], 1.5, 1], [[0.5, 0.5, 2], 2, 1],
+      [[0.75, 0.25, 1], 1.5, 2], [[0.5, 0.25, 0.25, 1], 2, 2], [[1 / 3, 1 / 3, 1 / 3, 1], 2, 2], [[0.25, 0.25, 0.5, 1], 2, 2], [[0.5, 0.5, 0.5, 0.5, 2], 1.5, 2],
+      [[0.25, 0.25, 0.25, 0.25, 1], 1.5, 3], [[0.5, 0.25, 0.25, 0.5, 0.5, 1], 1.5, 3], [[1 / 3, 1 / 3, 1 / 3, 1 / 3, 1 / 3, 1 / 3, 1], 1, 3]],
+    compound: [[[1, 0.5, 1.5], 3, 1], [[0.5, 0.5, 0.5, 1.5], 3, 1], [[1, 0.5, 0.5, 0.5, 1.5], 2, 1], [[1.5, 1.5], 1.5, 1], [[0.5, 1, 0.5, 1], 2, 2], [[0.25, 0.25, 0.5, 0.5, 1.5], 1.5, 3]]
+  };
+  // kontury motywu – kroki w stopniach skali między kolejnymi dźwiękami; S = krok, L = skok (tercja/kwarta), 0 = powtórzenie
+  const CONTOURS = [[1, 1, -1], [-1, -1, 1], [1, 2, -1], [-1, 1, 1], [2, -1, -1], [1, -1, -2], [-2, 1, 1], [1, 1, 1], [-1, -1, -1], [0, 1, -1], [1, -1, 0], [3, -1, -1], [-3, 1, 1], [1, -2, 1]];
+
+  const STYLE_PROFILE = {
+    blues: { swing: true, bend: 1.4, slide: 0.5, rest: 0.42, step: 0.6, leapMax: 7, blue: true, grace: 0.3 },
+    rock: { swing: false, bend: 1.2, slide: 0.4, rest: 0.38, step: 0.6, leapMax: 7, blue: false, grace: 0.2 },
+    pop: { swing: false, bend: 0.6, slide: 0.3, rest: 0.46, step: 0.75, leapMax: 5, blue: false, grace: 0.1 },
+    jazz: { swing: true, bend: 0.2, slide: 0.2, rest: 0.4, step: 0.6, leapMax: 9, blue: false, grace: 0.2, guide: true },
+    prog: { swing: false, bend: 0.8, slide: 0.4, rest: 0.34, step: 0.5, leapMax: 9, blue: false, grace: 0.15, odd: true },
+    alt: { swing: false, bend: 0.8, slide: 0.5, rest: 0.42, step: 0.65, leapMax: 7, blue: false, grace: 0.15 }
+  };
+  // gęstość: dźwięków na miarę w zależności od poziomu i intensywności
+  const DENSITY = [null, [0.6, 1.1], [0.8, 1.8], [1.0, 2.6], [1.2, 3.4]];
+
+  /* ---------- skala jako drabina stopni ---------- */
+  function ladder(h) { // tablica midi 36..96 należących do skali harmonii
+    const arr = []; for (let m = 36; m <= 96; m++) if (h.scale.has(mod(m, 12))) arr.push(m); return arr;
+  }
+  function degIdx(lad, m) { let bi = 0; for (let i = 1; i < lad.length; i++) if (Math.abs(lad[i] - m) < Math.abs(lad[bi] - m)) bi = i; return bi; }
+  function chordTonesNear(h, m, role) { // dźwięki akordu (midi) blisko m, opcjonalnie konkretna rola
+    const out = []; for (let x = m - 11; x <= m + 11; x++) { const r = h.tones.get(mod(x, 12)); if (r && (!role || r === role || (role === 'R' && r === '1'))) out.push(x); } return out;
+  }
+  function nearest(list, m, bias) { let b = null; for (const x of list) { const d = Math.abs(x - m) + (bias ? bias(x) : 0); if (b == null || d < b.d) b = { x, d }; } return b ? b.x : m; }
+
+  /* ---------- plan dramaturgii ---------- */
+  function planSolo(nPhr, arc, level) {
+    const P = [];
+    for (let i = 0; i < nPhr; i++) {
+      const t = nPhr === 1 ? 0.7 : i / (nPhr - 1);
+      let I;
+      if (arc === 'gentle') I = 0.25 + 0.35 * Math.sin(Math.PI * Math.min(1, t / 0.85));
+      else if (arc === 'two') { const a = Math.exp(-Math.pow((t - 0.38) / 0.16, 2)), b = Math.exp(-Math.pow((t - 0.8) / 0.13, 2)); I = 0.2 + 0.5 * a + 0.8 * b; }
+      else I = 0.18 + 0.82 * Math.exp(-Math.pow((t - 0.7) / 0.22, 2)) * (t <= 0.7 ? 1 : 0.9) + (t < 0.7 ? 0.25 * t : 0);
+      I = clamp(I, 0.12, 1);
+      let sec = t < 0.25 ? 'expo' : t < 0.58 ? 'dev' : t < 0.82 ? 'climax' : 'res';
+      if (nPhr <= 2) sec = i === 0 ? 'expo' : 'res';
+      else if (nPhr === 3) sec = ['expo', 'climax', 'res'][i];
+      else if (nPhr === 4) sec = ['expo', 'dev', 'climax', 'res'][i];
+      P.push({ i, t, I, sec });
+    }
+    // kulminacja: dokładnie jedna fraza ma najwyższą intensywność = 1
+    const cl = P.filter(p => p.sec === 'climax'); const peak = cl.length ? cl[Math.min(cl.length - 1, Math.floor(cl.length * 0.6))] : P[Math.max(0, P.length - 2)];
+    peak.I = 1; peak.peak = true;
+    if (P.length) P[P.length - 1].final = true;
+    // role motywiczne
+    let k = 0;
+    for (const p of P) {
+      if (p.sec === 'expo') p.op = k === 0 ? 'A' : k === 1 ? 'A-seq' : k % 2 ? 'A-var' : 'A-seq';
+      else if (p.sec === 'dev') p.op = ['B', 'A-seq', 'B-var', 'A-inv', 'A-frag', 'B-seq'][(k) % 6];
+      else if (p.sec === 'climax') p.op = p.peak ? 'A-peak' : 'A-frag';
+      else p.op = p.final ? 'A-final' : 'A-aug';
+      k++;
+    }
+    return P;
+  }
+
+  /* ---------- motyw ---------- */
+  function makeMotif(rng, level, style, beatQ, compound, seedNotes, lick, keyLad) {
+    if (seedNotes && seedNotes.length >= 2) return seedNotes;
+    if (lick) return lick;
+    const pool = (compound ? MOTIF_RHYTHMS.compound : MOTIF_RHYTHMS.sing).filter(x => x[2] <= level);
+    const rh = SG().wpick(rng, pool, x => x[1])[0];
+    const prof = STYLE_PROFILE[style] || STYLE_PROFILE.rock;
+    let con = CONTOURS[Math.floor(rng() * CONTOURS.length)];
+    if (prof.step >= 0.7 && con.some(c => Math.abs(c) >= 3)) con = CONTOURS[0];
+    // stopnie względem kotwicy (pierwszy dźwięk = 0)
+    const degs = [0]; for (let i = 1; i < rh.length; i++) degs.push(degs[i - 1] + (con[(i - 1) % con.length]));
+    // ostatni dźwięk wraca w stronę kotwicy, jeśli uciekł daleko
+    if (Math.abs(degs[degs.length - 1]) > 3) degs[degs.length - 1] = Math.sign(degs[degs.length - 1]) * 2;
+    let q = 0; const notes = rh.map((d, i) => { const n = { q: q * beatQ, d: d * beatQ, deg: degs[i] }; q += d; return n; });
+    // kotwica: tonika (R) najczęściej, kwinta / tercja dla odmiany
+    const anchor = rng() < 0.5 ? 'R' : rng() < 0.6 ? '5' : '3';
+    return { notes, anchor, lenQ: q * beatQ, src: 'gen' };
+  }
+  // jądro licka z biblioteki → motyw w stopniach skali tonacji
+  function motifFromLick(l, keyRoot, keyMinor, beatQ, rng) {
+    const byQ = new Map(); for (const n of l.notes) { if (n.q >= 2.01) continue; const o = byQ.get(n.q); if (!o || n.iv > o.iv) byQ.set(n.q, n); }
+    const ns = [...byQ.values()].sort((a, b) => a.q - b.q).slice(0, 6); if (ns.length < 3) return null;
+    for (let i = 0; i + 1 < ns.length; i++) if (ns[i].q + ns[i].d > ns[i + 1].q) ns[i] = Object.assign({}, ns[i], { d: ns[i + 1].q - ns[i].q });
+    const mask = keyMinor ? 1453 : 2741; const lad = []; for (let m = 36; m <= 96; m++) if (mask & (1 << mod(m - keyRoot, 12))) lad.push(m);
+    const base = 60; const mids = ns.map(n => base + n.iv + (n.bd >= 1 ? Math.round(n.bd) : 0));
+    const idx = mids.map(m => degIdx(lad, m));
+    const q0 = ns[0].q;
+    const notes = ns.map((n, i) => ({ q: (n.q - q0) * (beatQ === 1.5 ? 1.5 : 1), d: n.d * (beatQ === 1.5 ? 1.5 : 1), deg: idx[i] - idx[0], bd: n.bd, bt: n.bt }));
+    const lenQ = Math.max(...notes.map(n => n.q + n.d));
+    const degRel = l.deg0 != null ? mod(ns[0].iv - l.deg0, 12) : mod(ns[0].iv, 12);
+    const anchor = degRel === 0 ? 'R' : (degRel === 3 || degRel === 4) ? '3' : degRel === 7 ? '5' : 'R';
+    return { notes, anchor, lenQ, src: 'lick', id: l.id };
+  }
+  function userMotif(seed, h0, beatQ) { // seed: [{q,d,m}] względne
+    if (!seed || seed.length < 2 || !h0) return null;
+    { const byQ = new Map(); for (const n of seed) { const k = Math.round(n.q * 1000); const o = byQ.get(k); if (!o || n.m > o.m) byQ.set(k, n); } seed = [...byQ.values()].sort((a, b) => a.q - b.q); if (seed.length < 2) return null; for (let i = 0; i + 1 < seed.length; i++) if (seed[i].q + seed[i].d > seed[i + 1].q) seed[i] = Object.assign({}, seed[i], { d: seed[i + 1].q - seed[i].q }); }
+    const lad = ladder(h0); const q0 = seed[0].q; const i0 = degIdx(lad, seed[0].m);
+    const notes = seed.map(n => ({ q: n.q - q0, d: n.d, deg: degIdx(lad, n.m) - i0, bd: n.bd, bt: n.bt }));
+    const r = h0.tones.get(mod(seed[0].m, 12)); const anchor = r === 'R' || r === '1' ? 'R' : r === '3' ? '3' : r === '5' ? '5' : 'R';
+    return { notes, anchor, lenQ: Math.max(...notes.map(n => n.q + n.d)), src: 'user', firstMidi: seed[0].m };
+  }
+  // operatory
+  function opApply(m, op, rng, level, beatQ) {
+    const N = m.notes.map(n => Object.assign({}, n));
+    const out = { notes: N, anchor: m.anchor, lenQ: m.lenQ, src: m.src, op };
+    const scale = f => { let q = 0; for (const n of N) { n.q = q; n.d *= f; q += n.d; } out.lenQ = q; };
+    switch (op) {
+      case 'inv': N.forEach(n => n.deg = -n.deg); break;
+      case 'retro': { const degs = N.map(n => n.deg).reverse(); N.forEach((n, i) => n.deg = degs[i] - degs[0]); break; }
+      case 'aug': scale(2); break;
+      case 'dim': scale(0.5); break;
+      case 'frag': { const k = Math.max(2, Math.ceil(N.length / 2)); out.notes = N.slice(0, k); out.lenQ = out.notes[k - 1].q + out.notes[k - 1].d; break; }
+      case 'var': { // zmiana jednego dźwięku w środku o krok i drobna zmiana rytmu na końcu
+        if (N.length >= 3) { const i = 1 + Math.floor(rng() * (N.length - 2)); N[i].deg += rng() < 0.5 ? 1 : -1; }
+        if (N.length >= 2 && rng() < 0.5) { const a = N[N.length - 2], b = N[N.length - 1]; const tot = a.d + b.d; if (tot >= 0.75 * beatQ) { const g = 0.25 * beatQ; a.d = clamp(Math.round(tot * (rng() < 0.5 ? 0.33 : 0.67) / g) * g, g, tot - g); b.q = a.q + a.d; b.d = tot - a.d; } }
+        break;
+      }
+      case 'orn': { // ozdobienie: dźwięk sąsiedni przed dźwiękiem mocnym (poziom 2+)
+        if (level >= 2 && N.length >= 2) { const i = N.length - 1; const t = N[i]; const g = Math.min(0.5 * beatQ, t.d * 0.5); if (t.d - g >= 0.25 * beatQ) { out.notes.splice(i, 0, { q: t.q, d: g, deg: t.deg + (rng() < 0.5 ? 1 : -1), grace: true }); t.q += g; t.d -= g; } }
+        break;
+      }
+      case 'oct': out.oct = rng() < 0.5 ? 12 : -12; break;
+      default: break;
+    }
+    return out;
+  }
+
+  /* ---------- główna funkcja ---------- */
+  function compose(o) {
+    const I = SG(); const song = o.song, level = clamp(o.level | 0 || 2, 1, 4), style = o.style || 'rock'; const prof = STYLE_PROFILE[style] || STYLE_PROFILE.rock;
+    const tun = o.tuning, frets = o.frets || 15, capo = o.capo || 0, shift = o.shift || 0;
+    const from = Math.max(0, o.from || 0), to = Math.min(song.bars.length - 1, o.to == null ? song.bars.length - 1 : o.to);
+    if (to < from) return { notes: [], edits: [], summary: { text: 'Brak taktów' }, cands: [] };
+    const key = song.key || (() => { const ev = song.events.find(e => e.chord && !e.chord.nc); return ev ? { root: ev.chord.root, scale: { mask: ev.chord.flags && ev.chord.flags.minor ? 1453 : 2741 } } : { root: 9, scale: { mask: 1453 } }; })();
+    const keyMinor = !!(key.scale && (key.scale.mask & 8) && !(key.scale.mask & 16)); const keyRoot = key.root; const keyR = mod(keyRoot + shift, 12);
+    // skale (spójnie ze starym generatorem – zmiany trafiają do zapisu utworu)
+    const edits = I.scaleChanges(song, from, to, level, keyRoot, keyMinor);
+    const over = new Map(edits.map(e => [e.ev.loc.ln + ':' + e.ev.loc.cell + ':' + e.ev.loc.tok, { root: e.root, mask: e.scale.mask }]));
+    const ovFor = ev => ev && ev.loc ? over.get(ev.loc.ln + ':' + ev.loc.cell + ':' + ev.loc.tok) : null;
+    const evAt = (bi, q) => { const b = song.bars[bi]; if (!b) return null; let e = null; for (const x of b.events) if (x.startInBar <= q + 1e-6) e = x; if (e && e.tied) { let i = song.events.indexOf(e); while (i > 0 && song.events[i].tied) i--; return song.events[i]; } return e; };
+    const harmAt = (bi, q) => { const ev = evAt(bi, q); return I.harmonyOf(ev, shift, ev ? ovFor(ev) : null); };
+    // oś czasu w ćwierćnutach od taktu `from`
+    const bars = []; let acc = 0; for (let b = from; b <= to; b++) { bars.push({ b, q0: acc, bar: song.bars[b] }); acc += song.bars[b].lenQ; }
+    const totalQ = acc;
+    const locate = q => { let s = bars[0]; for (const x of bars) if (q >= x.q0 - 1e-6) s = x; return { b: s.b, q: q - s.q0, bar: s.bar }; };
+    const compound = b => b.den === 8 && b.groups.every(g => g === 3);
+    const beatOf = bar => compound(bar) ? 1.5 : 4 / bar.den;
+    const strongAt = q => { const p = locate(q); const unit = 4 / p.bar.den; let a = 0; for (const g of p.bar.groups) { if (Math.abs(p.q - a * unit) < 1e-6) return a === 0 ? 2 : 1; a += g; } return 0; };
+    const onBeat = q => { const p = locate(q); const bq = beatOf(p.bar); return Math.abs(p.q / bq - Math.round(p.q / bq)) < 1e-6; };
+    const harmQ = q => { const p = locate(q); return harmAt(p.b, p.q); };
+    const nextChangeQ = q => { // najbliższa zmiana akordu po q (w osi), albo null
+      let cur = harmQ(q); if (!cur) return null;
+      for (const s of bars) for (const e of s.bar.events) { const qq = s.q0 + e.startInBar; if (qq > q + 1e-6 && !e.tied && e.chord && !e.chord.nc && (e.chord.root !== cur.ev.chord.root || e.chord.mask !== cur.ev.chord.mask)) return qq; }
+      return null;
+    };
+    // frazy
+    const bar0 = song.bars[from]; const barSec = bars.reduce((s, x) => s + x.bar.lenSec, 0) / bars.length; const beatQ = beatOf(bar0); const comp = compound(bar0);
+    const phraseBars = barSec >= 5 ? 1 : barSec >= 1.5 ? 2 : 4;
+    const phrases = []; for (let i = 0; i < bars.length; i += phraseBars) { const seg = bars.slice(i, i + phraseBars); phrases.push({ q0: seg[0].q0, q1: seg[seg.length - 1].q0 + seg[seg.length - 1].bar.lenQ, b0: seg[0].b }); }
+    const plan = planSolo(phrases.length, o.arc || 'rise', level);
+    const wins0 = I.windowsFor(keyR, tun, frets, capo, Math.max(2, Math.min(4, level + 1)), !keyMinor);
+    const home = wins0[0]; const wins = wins0.slice().sort((a, b) => a[0] - b[0]); const homeIdx = wins.indexOf(home);
+    const lickPool = (o.useBuiltin === false ? [] : (G.SOLOGEN.BOOK || [])).concat(o.licks || []);
+    const sMap = I.STYLE_MAP[style] || [[style], []];
+
+    // ---------- jeden kandydat ----------
+    function candidate(seed) {
+      const rng = I.rngOf(seed);
+      // motyw A: użytkownika / z licka / wygenerowany
+      let h0 = harmQ(phrases[0].q0); if (!h0) { for (let qq = 0; qq < totalQ && !h0; qq += 0.5) h0 = harmQ(qq); }
+      let A = o.motif ? userMotif(o.motif, h0 || harmQ(0), beatQ) : null;
+      let lickUsed = null;
+      if (!A && lickPool.length && rng() < (level >= 2 ? 0.55 : 0.35)) {
+        const cands = lickPool.filter(l => (keyMinor ? l.mi !== 0 : l.mi !== 1) && (!l.style || sMap[0].includes(l.style) || sMap[1].includes(l.style)) && (!l.level || l.level <= level + 1) && (/\/8$/.test(l.meter || '') === comp || !l.meter));
+        for (let k = 0; k < 6 && !A; k++) { const l = cands[Math.floor(rng() * cands.length)]; if (!l) break; const m = motifFromLick(l, keyR, keyMinor, beatQ, rng); if (m && m.lenQ <= phrases[0].q1 - phrases[0].q0) { A = m; lickUsed = l.id; } }
+      }
+      if (!A) A = makeMotif(rng, level, style, beatQ, comp, null, null);
+      // motyw B: kontrast (inny rytm, odwrotny kierunek)
+      let B = makeMotif(rng, level, style, beatQ, comp, null, null); if (B.notes.length === A.notes.length && rng() < 0.7) B = makeMotif(rng, level, style, beatQ, comp, null, null);
+      B.anchor = A.anchor === 'R' ? '3' : 'R';
+      const notes = []; let prevM = null; let peakM = -1; const phraseInfo = [];
+      let lastWin = null;
+      for (let pi = 0; pi < phrases.length; pi++) {
+        const ph = phrases[pi], pl = plan[pi]; const lenQ = ph.q1 - ph.q0;
+        // rejestr: okno z intensywności; kulminacja – najwyższe; finał – najniższe
+        let wi = clamp(Math.round(pl.I * (wins.length - 1) + (rng() - 0.5) * 0.6), 0, wins.length - 1);
+        if (pl.peak) wi = wins.length - 1; if (pl.final) wi = homeIdx; if (pl.sec === 'expo' && pi === 0) wi = Math.min(homeIdx, wi);
+        if (lastWin != null && Math.abs(wi - lastWin) > 1 && !pl.peak) wi = lastWin + Math.sign(wi - lastWin); // zmiana pozycji o jedną
+        lastWin = wi; const win = wins[wi];
+        const centerM = (tun[2] + win[0] + tun[3] + win[1]) / 2 + (pl.peak ? 5 : 0); // środek okna na strunach G/H
+        // motyw tej frazy wg roli
+        const [base, opName] = pl.op.split('-'); let M = base === 'B' ? B : A;
+        let ops = [];
+        if (opName === 'seq') ops = ['seq']; else if (opName === 'var') ops = ['var']; else if (opName === 'inv') ops = ['inv']; else if (opName === 'frag') ops = ['frag']; else if (opName === 'aug') ops = ['aug']; else if (opName === 'peak') ops = ['frag']; else if (opName === 'final') ops = ['aug'];
+        if (level >= 2 && rng() < 0.3 && !ops.includes('frag') && !pl.final) ops.push('orn');
+        if (level >= 3 && base === 'B' && rng() < 0.3) ops.push('retro');
+        if (M.src === 'user' && pi === 0) ops = [];
+        for (const op of ops) M = opApply(M, op, rng, level, beatQ);
+        // ile powtórzeń motywu zmieści się: gęstość docelowa
+        const dens = DENSITY[level][0] + (DENSITY[level][1] - DENSITY[level][0]) * pl.I; // dźwięków na miarę
+        const restTarget = clamp(prof.rest - 0.25 * pl.I + (pl.final ? 0.1 : 0), 0.12, 0.6);
+        const avail = Math.max(M.lenQ, lenQ * (1 - restTarget) - (pl.final ? 2 : 1) * beatQ);
+        // start: po „raz” (0.5 lub 1 miara), przedtakt w ekspozycji/rozwinięciu
+        const startOpts = pl.peak ? [0, 0.5] : pl.final ? [0, 1] : [0.5, 1, 0.5, 1.5, 0];
+        let qs = ph.q0 + startOpts[Math.floor(rng() * startOpts.length)] * beatQ;
+        if (!harmQ(qs)) { let qq = qs; while (qq < ph.q1 && !harmQ(qq)) qq += 0.5 * beatQ; if (qq < ph.q1) qs = qq; }
+        if (pi > 0 && rng() < 0.35 && !pl.peak) qs = ph.q0 - 0.5 * beatQ; // przedtakt
+        if (M.src === 'user' && pi === 0) qs = ph.q0 + (o.motifQ0 || 0);
+        const seqNotes = [];
+        let reps = Math.max(1, Math.min(4, Math.floor(avail / Math.max(0.5, M.lenQ) + 1e-6)));
+        if (pl.peak) reps = Math.max(reps, Math.min(2, Math.floor((lenQ - beatQ) / Math.max(0.5, M.lenQ))));
+        if (M.src === 'user' && pi === 0) reps = 1;
+        if (pl.final) { const lastBarQ0 = ph.q1 - bars[bars.length - 1].bar.lenQ; reps = Math.max(1, Math.min(reps, Math.floor((lastBarQ0 + 0.5 * beatQ - qs) / Math.max(0.5, M.lenQ)) + 1)); }
+        if (opName === 'frag') reps = Math.min(4, Math.max(2, reps));
+        const stepUp = opName === 'frag' || pl.peak ? 1 : (ops.includes('seq') && rng() < 0.5 ? (rng() < 0.6 ? 1 : -1) : 0);
+        let q = qs; let shiftDeg = 0;
+        for (let r = 0; r < reps; r++) {
+          // przerwij, jeśli brak miejsca na cel frazy (ostatni dźwięk długi) + oddech
+          if (q + M.lenQ > ph.q1 - (pl.final ? 0 : 0.5 * beatQ) + 1e-6 && r > 0) break;
+          if (r > 0 && seqNotes.length && M.notes[0].deg + shiftDeg === seqNotes[seqNotes.length - 1].deg) shiftDeg += stepUp || 1; // bez unisonu na szwie powtórzeń
+          for (const n of M.notes) seqNotes.push({ q: q + n.q, d: n.d, deg: n.deg + shiftDeg, grace: n.grace, bd: n.bd, bt: n.bt, rep: r });
+          q += M.lenQ; shiftDeg += stepUp;
+          // między powtórzeniami krótki oddech, gdy mało intensywnie
+          if (pl.I < 0.5 && rng() < 0.5) q += 0.5 * beatQ;
+        }
+        if (!seqNotes.length) continue;
+        // kotwica: dźwięk akordu (rola M.anchor) najbliżej środka okna (z lekkim odchyleniem od poprzedniej frazy)
+        let hA = harmQ(Math.max(ph.q0, seqNotes[0].q)); if (!hA) { for (let qq = ph.q0; qq < ph.q1 && !hA; qq += 0.5) hA = harmQ(qq); } if (!hA) continue;
+        let anchorM = nearest(chordTonesNear(hA, Math.round(centerM), M.anchor === 'R' ? 'R' : M.anchor), Math.round(centerM) + (prevM != null ? clamp((prevM - centerM) * 0.3, -4, 4) : 0));
+        if (M.src === 'user' && pi === 0 && M.firstMidi) anchorM = M.firstMidi + (M.oct || 0);
+        if (M.oct) anchorM += M.oct;
+        // realizacja: stopnie → midi w skali bieżącej harmonii
+        const real = [];
+        for (const n of seqNotes) {
+          if (n.q < bars[0].q0 - 1e-6 || n.q >= totalQ - 1e-6) continue;
+          const h = harmQ(Math.max(0, n.q)) || (M.src === 'user' ? hA : null); if (!h) continue;
+          const lad = ladder(h); const ia = degIdx(lad, anchorM); let m = lad[clamp(ia + n.deg, 0, lad.length - 1)];
+          if (M.src === 'user' && pi === 0 && o.motif && o.motif[real.length]) m = o.motif[real.length].m;
+          // zakres okna (±3 progi tolerancji)
+          const lo = tun[0] + win[0] - 2, hi = tun[5] + win[1] + 3; while (m < lo) m += 12; while (m > hi) m -= 12;
+          real.push({ q: n.q, d: n.d, m, grace: n.grace, bd: n.bd, bt: n.bt, h, rep: n.rep });
+        }
+        if (!real.length) continue;
+        // mocne części taktu → dźwięki akordu (najbliższy; tercja/septyma mile widziane w jazzie)
+        for (let i = 0; i < real.length; i++) {
+          const n = real[i]; const st = strongAt(n.q); const long = n.d >= beatQ * 0.99;
+          if (n.grace) continue;
+          const isChord = n.h.tones.has(mod(n.m, 12));
+          if ((st === 2 || (st === 1 && (long || level <= 1)) || (long && onBeat(n.q))) && !isChord && !(M.src === 'user' && pi === 0)) {
+            const ct = chordTonesNear(n.h, n.m, null).filter(x => Math.abs(x - n.m) <= 4);
+            const pv = real[i - 1] ? real[i - 1].m : null, nx = real[i + 1] ? real[i + 1].m : null; const dir = pv != null ? Math.sign(n.m - pv) : 0;
+            if (ct.length) n.m = nearest(ct, n.m, x => (prof.guide && ['3', '7'].includes(n.h.tones.get(mod(x, 12))) ? -0.4 : 0) + (x === pv ? 2.5 : 0) + (x === nx ? 1.5 : 0) + (dir && Math.sign(x - pv) !== dir ? 1.2 : 0));
+          }
+          // dźwięk unikany (pół tonu nad dźwiękiem akordu) na mocnej/długiej → przesuń o krok
+          if ((st || long) && !n.h.tones.has(mod(n.m, 12)) && [...n.h.tones.keys()].some(t => mod(n.m - t, 12) === 1)) { const lad = ladder(n.h); const k = degIdx(lad, n.m); n.m = lad[clamp(k + (rng() < 0.5 ? 1 : -1), 0, lad.length - 1)]; }
+        }
+        // cel frazy: ostatni dźwięk = dźwięk akordu, długi; prowadzony do następnego akordu krokiem
+        const last = real[real.length - 1]; const hL = last.h;
+        const nxQ = nextChangeQ(last.q); const hN = nxQ != null ? harmQ(nxQ) : null;
+        const goalCands = chordTonesNear(hL, last.m, null).filter(x => Math.abs(x - last.m) <= 5);
+        const prevGoal = real.length > 1 ? real[real.length - 2].m : null;
+        if (goalCands.length && !(M.src === 'user' && pi === 0)) {
+          const bias = x => {
+            let b = 0; const r = hL.tones.get(mod(x, 12));
+            if (x === prevGoal) b += 2;
+            if (pl.final) b += r === 'R' || r === '1' ? -3 : r === '5' ? -1 : 0;
+            else if (r === '3') b -= 0.8; else if (r === '5') b -= 0.4;
+            if (hN && !pl.final) { const tg = [...hN.tones.entries()].filter(([, rr]) => rr === '3' || rr === 'R' || rr === '1').map(([pc]) => pc); if (tg.some(pc => [1, 2].includes(mod(Math.abs(x - pc), 12)) || [10, 11].includes(mod(x - pc, 12)))) b -= 1.2; }
+            return b;
+          };
+          last.m = nearest(goalCands, last.m, bias);
+        }
+        // długość celu: do końca frazy minus oddech (min. 1 miara)
+        const roomEnd = ph.q1 - (pl.final ? 0 : 0.5 * beatQ); const minLen = pl.final ? 2 * beatQ : (M.src === 'user' && pi === 0 ? Math.min(beatQ, last.d) : beatQ);
+        last.d = clamp(roomEnd - last.q, Math.min(minLen, Math.max(last.d, roomEnd - last.q)), pl.final ? Math.max(minLen, 2 * bar0.lenQ) : Math.max(minLen, 2.5 * beatQ));
+        if (last.q + last.d > ph.q1 + 1e-6 && !pl.final) last.d = Math.max(0.5 * beatQ, ph.q1 - last.q - 0.25 * beatQ);
+        if (pl.final && last.q + last.d > totalQ) last.d = totalQ - last.q;
+        // usuń dźwięki nachodzące na cel oraz nachodzące na siebie
+        for (let i = 0; i < real.length - 1; i++) { if (real[i].q + real[i].d > real[i + 1].q + 1e-6) real[i].d = Math.max(0.125, real[i + 1].q - real[i].q); }
+        // kulminacja: najwyższy dźwięk na długim bendzie do dźwięku akordu
+        if (pl.peak) { const top = real.reduce((a, b) => b.m > a.m ? b : a, real[0]); if (top && top !== last && top.d >= 0.5 * beatQ) top.d = Math.max(top.d, beatQ); last.vbForce = true; }
+        // artykulacja: bendy, vibrato, legato, slajd
+        articulate(real, rng, level, prof, pl, beatQ, tun, frets, capo, win);
+        // dynamika: akcenty i łuk frazy
+        const pk = Math.max(...real.map(n => n.m));
+        real.forEach((n, i) => { const st = strongAt(n.q); let v = 0.62 + 0.2 * pl.I + (st === 2 ? 0.12 : st === 1 ? 0.06 : 0) + (n.m === pk ? 0.08 : 0) + (n.grace ? -0.15 : 0) + (n.lg === 'h' || n.lg === 'p' ? -0.12 : 0); n.v = clamp(v + (rng() - 0.5) * 0.06, 0.35, 1); });
+        for (const n of real) { if (n.m > peakM) peakM = n.m; prevM = n.m; notes.push(Object.assign({ ph: pi, win: wi }, n)); }
+        phraseInfo.push({ pi, sec: pl.sec, op: pl.op, I: pl.I, n: real.length, b0: ph.b0, peak: !!pl.peak, win: wi, motif: M.src, anchor: M.anchor });
+      }
+      // bez nakładania dźwięków (cel frazy / szczyt mogły wejść na następną frazę)
+      notes.sort((a, b) => a.q - b.q);
+      for (let i = 0; i + 1 < notes.length; i++) if (notes[i].q + notes[i].d > notes[i + 1].q + 1e-6) notes[i].d = Math.max(0.125, notes[i + 1].q - notes[i].q);
+      // położenie na gryfie + palce
+      const placed = place(notes, tun, frets, capo, wins);
+      const out = placed.map(n => { const p = locate(n.q); const r = { b: p.b, q: Math.round(p.q * 1e4) / 1e4, d: Math.round(n.d * 1e4) / 1e4, s: n.s, f: n.f, g: n.g, v: Math.round(n.v * 100) / 100 }; if (n.bd) { r.bd = n.bd; r.bt = n.bt || 'b'; } if (n.lg) r.lg = n.lg; if (n.vb) r.vb = 1; return r; });
+      const score = critic(out, notes, phraseInfo, { totalQ, beatQ, strongAt, harmQ, prof, level, plan });
+      return { notes: out, score, phraseInfo, lickUsed, motif: A, seed };
+    }
+
+    // ---------- artykulacja ----------
+    function articulate(real, rng, level, prof, pl, beatQ, tun, frets, capo, win) {
+      const wantBends = Math.round(prof.bend * (0.5 + pl.I) * (level >= 2 ? 1 : 0.6));
+      for (const n of real) if (n.bd && (n.d < 0.5 * beatQ || n.grace || !n.h.tones.has(mod(n.m, 12)))) { delete n.bd; delete n.bt; }
+      let nb = real.filter(n => n.bd).length;
+      if (nb > wantBends) { for (const n of real.slice().sort((a, b) => a.d - b.d)) { if (nb <= Math.max(1, wantBends)) break; if (n.bd) { delete n.bd; delete n.bt; nb--; } } }
+      // bendy: długie dźwięki akordu, do których w skali jest dźwięk ton/półton niżej
+      const order = real.map((n, i) => i).filter(i => real[i].d >= 0.75 * beatQ && !real[i].grace).sort((a, b) => real[b].d - real[a].d);
+      for (const i of order) {
+        if (nb >= wantBends) break; const n = real[i]; if (n.bd) { nb++; continue; }
+        if (!n.h.tones.has(mod(n.m, 12))) continue;
+        const lad = ladder(n.h); const k = degIdx(lad, n.m); const below = lad[k - 1]; const semis = below != null ? n.m - below : 0;
+        if (semis !== 1 && semis !== 2) continue;
+        if (level === 1 && semis !== 2) continue;
+        n.bd = semis; n.bt = n.d >= 1.5 * beatQ && rng() < 0.45 ? 'br' : level >= 3 && rng() < 0.15 && i > 0 ? 'pb' : 'b'; n.vb = n.d >= beatQ ? 1 : undefined; nb++;
+      }
+      // vibrato na długich
+      for (const n of real) if ((n.d >= beatQ * 0.99 || n.vbForce) && !n.grace) n.vb = 1;
+      // legato na krokach (ta sama struna ustali się przy układaniu – tu znacznik intencji), slajd w pierwszy dźwięk frazy
+      for (let i = 1; i < real.length; i++) { const a = real[i - 1], b = real[i]; const d = Math.abs(b.m - a.m); if (!a.bd && !b.bd && d >= 1 && d <= 3 && a.d <= 0.5 * beatQ && rng() < (level >= 2 ? 0.45 : 0.2)) b.lg = b.m > a.m ? 'h' : 'p'; }
+      if (real.length && rng() < prof.slide && level >= 2 && !real[0].bd) real[0].lg = 's';
+      // ozdobnik: nuta łaskotana (grace) – zawsze legato
+      for (let i = 1; i < real.length; i++) if (real[i - 1].grace && !real[i].bd) real[i].lg = real[i].m > real[i - 1].m ? 'h' : 'p';
+      // blue note (b5) jako przejście między 4 a 5 w bluesie na słabej części
+      if (prof.blue && level >= 2) for (let i = 1; i < real.length - 1; i++) { const a = real[i - 1], n = real[i], c = real[i + 1]; if (strongAt(n.q) || n.d > 0.5 * beatQ) continue; const rel = mod(n.m - n.h.root, 12); if (rel === 5 && mod(c.m - n.h.root, 12) === 7 && c.m - n.m === 2 && rng() < 0.5) { n.m += 1; n.blue = true; } }
+    }
+
+    // ---------- układanie na gryfie: jedna pozycja na frazę, bendy na G/H/e, legato na jednej strunie ----------
+    function place(notes, tun, frets, capo, wins) {
+      const out = []; let prev = null;
+      for (let i = 0; i < notes.length; i++) {
+        const n = notes[i]; const win2 = wins[clamp(n.win || 0, 0, wins.length - 1)];
+        const pm = n.bd ? n.m - n.bd : n.m; // próg dociskany
+        const cands = [];
+        for (let s = 0; s < 6; s++) { const f = pm - tun[s]; if (f < Math.max(capo, 0) || f > frets) continue; if (n.bd && (f < 3 || s < 2 || (s === 2 && level < 3))) continue; let sc = 0; const lo = win2[0], hi = win2[1]; sc += f < lo ? (lo - f) * 2.2 : f > hi ? (f - hi) * 2.2 : 0; if (prev) { sc += Math.abs(f - prev.f) * 0.35 + Math.abs(s - prev.s) * 0.25; if ((n.lg === 'h' || n.lg === 'p') && s !== prev.s) sc += 4; if (n.lg === 's' && s !== prev.s) sc += 2; } if (f === 0) sc += 2.5; cands.push({ s, f, sc }); }
+        if (!cands.length && n.bd) { delete n.bd; delete n.bt; i--; continue; } // bend nie do zagrania w tej pozycji – zwykły dźwięk
+        if (!cands.length) { for (let s = 0; s < 6; s++) { const f = n.m - tun[s]; if (f >= Math.max(capo, 0) && f <= frets) cands.push({ s, f, sc: 50 }); } }
+        if (!cands.length) continue;
+        cands.sort((a, b) => a.sc - b.sc); const c = cands[0];
+        if ((n.lg === 'h' || n.lg === 'p') && prev && c.s !== prev.s) delete n.lg;
+        if (n.lg === 'h' && prev && c.f < prev.f) n.lg = 'p'; if (n.lg === 'p' && prev && c.f > prev.f) n.lg = 'h';
+        if (n.lg === 's' && prev && (c.s !== prev.s || Math.abs(c.f - prev.f) < 2 || Math.abs(c.f - prev.f) > 7)) delete n.lg;
+        let g = c.f === 0 ? 0 : clamp(c.f - win2[0] + 1, 1, 4); if (n.bd && c.f > 0) g = 3;
+        const r = Object.assign({}, n, { s: c.s, f: c.f, g }); out.push(r); prev = r;
+      }
+      return out;
+    }
+
+    // ---------- krytyk ----------
+    function critic(out, raw, phraseInfo, ctx) {
+      if (!raw.length) return -1e9;
+      const ms = raw.map(n => n.m); const ivs = []; for (let i = 1; i < ms.length; i++) ivs.push(ms[i] - ms[i - 1]);
+      const abs = ivs.map(Math.abs);
+      const stepRatio = abs.filter(x => x <= 2 && x > 0).length / Math.max(1, abs.length);
+      const unison = abs.filter(x => x === 0).length / Math.max(1, abs.length);
+      const bigLeaps = abs.filter(x => x > ctx.prof.leapMax).length;
+      let leaps = 0, recovered = 0; for (let i = 0; i < ivs.length - 1; i++) if (Math.abs(ivs[i]) >= 5) { leaps++; if (Math.sign(ivs[i + 1]) === -Math.sign(ivs[i]) && Math.abs(ivs[i + 1]) <= 4) recovered++; }
+      const recovery = leaps ? recovered / leaps : 1;
+      // dźwięki akordu na mocnych
+      let strongN = 0, strongCT = 0; for (const n of raw) { const st = ctx.strongAt(n.q); if (st) { strongN++; if (n.h.tones.has(mod(n.m, 12))) strongCT++; } }
+      const ctStrong = strongN ? strongCT / strongN : 1;
+      // oddech
+      let sounding = 0; for (const n of raw) sounding += n.d; const rest = 1 - sounding / ctx.totalQ;
+      // szczyt
+      const peakIdx = ms.indexOf(Math.max(...ms)); const peakPos = raw[peakIdx].q / ctx.totalQ;
+      const range = Math.max(...ms) - Math.min(...ms);
+      // powtarzalność motywu: 3-gramy (interwał, interwał, rytm)
+      const grams = new Map(); let gN = 0;
+      for (let i = 0; i + 2 < raw.length; i++) { const k = (raw[i + 1].m - raw[i].m) + ',' + (raw[i + 2].m - raw[i + 1].m) + '|' + Math.round(raw[i].d * 4) + ',' + Math.round(raw[i + 1].d * 4); grams.set(k, (grams.get(k) || 0) + 1); gN++; }
+      let rep = 0; for (const v of grams.values()) if (v > 1) rep += v; const recurrence = gN ? rep / gN : 0;
+      // kierunek: długie ciągi w jedną stronę
+      let run = 0, maxRun = 0; for (let i = 1; i < ivs.length; i++) { if (Math.sign(ivs[i]) === Math.sign(ivs[i - 1]) && ivs[i] !== 0) run++; else run = 0; maxRun = Math.max(maxRun, run); }
+      // zakończenia fraz na dźwiękach akordu
+      let ends = 0, endsCT = 0; for (const p of phraseInfo) { const L = raw.filter(n => n.ph === p.pi); if (!L.length) continue; const l = L[L.length - 1]; ends++; if (l.h.tones.has(mod(l.m, 12))) endsCT++; }
+      const endRatio = ends ? endsCT / ends : 1;
+      const lastN = raw[raw.length - 1]; const finalRole = lastN.h.tones.get(mod(lastN.m, 12)); const finalOk = finalRole === 'R' || finalRole === '1' ? 1 : finalRole === '5' || finalRole === '3' ? 0.6 : 0;
+      const gauss = (x, mu, sd) => Math.exp(-Math.pow((x - mu) / sd, 2));
+      let s = 0;
+      s += 3.0 * gauss(stepRatio, ctx.prof.step, 0.14);
+      s += 2.0 * recovery;
+      s += 3.5 * ctStrong;
+      s += 2.0 * gauss(rest, clamp(ctx.prof.rest - 0.05 * (ctx.level - 2), 0.25, 0.5), 0.1);
+      s += 1.5 * gauss(peakPos, 0.7, 0.14);
+      s += 1.2 * gauss(range, 15, 5);
+      s += 2.5 * gauss(recurrence, 0.45, 0.22); // motyw wraca, ale nie dosłownie w kółko
+      s += 1.5 * endRatio + 1.0 * finalOk;
+      s -= 1.5 * Math.max(0, unison - 0.18) * 5;
+      s -= 0.8 * bigLeaps;
+      s -= 0.6 * Math.max(0, maxRun - 5);
+      if (raw.length < 4) s -= 5;
+      return s;
+    }
+
+    // ---------- wiele kandydatów, wybór najlepszych ----------
+    const K = o.candidates || 36; const cands = [];
+    const rng0 = I.rngOf(o.seed || 1);
+    for (let k = 0; k < K; k++) { const seed = (Math.floor(rng0() * 4294967295) ^ (k * 2654435761)) >>> 0; try { const c = candidate(seed); if (c && c.notes.length) cands.push(c); } catch (e) { /* kandydat nieudany */ } }
+    cands.sort((a, b) => b.score - a.score);
+    const best = cands[0] || { notes: [], score: 0, phraseInfo: [], seed: 0 };
+    const summary = describe(best, { from, to, level, style, phrases, plan, keyMinor, keyR, song });
+    summary.edits = edits.map(e => ({ chord: e.ev.chord.symbol, bar: e.ev.bar + 1, root: e.root, scale: e.scale, why: e.why }));
+    return { notes: best.notes, edits, summary, cands: cands.slice(0, 8).map(c => ({ notes: c.notes, score: Math.round(c.score * 100) / 100, seed: c.seed, text: describe(c, { from, to, level, style, phrases, plan, keyMinor, keyR, song }).text })) };
+  }
+
+  function describe(c, ctx) {
+    const secName = { expo: 'ekspozycja', dev: 'rozwinięcie', climax: 'kulminacja', res: 'rozwiązanie' };
+    const groups = [];
+    for (const p of c.phraseInfo) { const g = groups[groups.length - 1]; if (g && g.sec === p.sec) { g.b1 = ctx.phrases[p.pi + 1] ? ctx.phrases[p.pi + 1].b0 - 1 : ctx.to; g.n += p.n; if (p.peak) g.peak = true; } else groups.push({ sec: p.sec, b0: p.b0, b1: ctx.phrases[p.pi + 1] ? ctx.phrases[p.pi + 1].b0 - 1 : ctx.to, n: p.n, peak: !!p.peak }); }
+    const parts = groups.map(g => `${secName[g.sec]} t. ${g.b0 + 1}–${g.b1 + 1}${g.peak ? ' (szczyt)' : ''}`);
+    const motifTxt = c.motif ? (c.motif.src === 'user' ? 'Twój motyw' : c.motif.src === 'lick' ? 'motyw z biblioteki' : 'motyw autorski') + ' (' + c.motif.notes.length + ' dźwięków, kotwica: ' + ({ R: 'pryma', 3: 'tercja', 5: 'kwinta' }[c.motif.anchor] || 'pryma') + ')' : '';
+    const bends = c.notes.filter(n => n.bd).length;
+    return { text: `${motifTxt}. Plan: ${parts.join(' → ')}. ${c.notes.length} dźwięków, ${bends} podciągnięć, ocena krytyka ${Math.round(c.score * 10) / 10}.`, level: G.SOLOGEN.LEVELS[ctx.level].name, style: G.SOLOGEN.STYLES[ctx.style] || ctx.style, notes: c.notes.length, bends, phrases: ctx.phrases.length, lick: c.lickUsed, score: c.score };
+  }
+
+  G.SOLOCOMP = { compose, planSolo, STYLE_PROFILE, _int: { makeMotif, opApply, motifFromLick, userMotif } };
 })(typeof window !== 'undefined' ? window : globalThis);
 
 /* ===== Analiza podkładu: takty i akordy przy tempie i metrum podanych przez użytkownika =====
@@ -4613,7 +5047,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.3.0';
+  const VERSION = '3.4.0';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -4992,7 +5426,7 @@ akordy: chwyty     # albo: brzmiące
       const src = c.createBufferSource(); src.buffer = sm.buf;
       const g = c.createGain(); src.connect(g); g.connect(this.out);
       const legato = o.lg === 'h' || o.lg === 'p';
-      const vel = (legato ? 0.62 : 1) * sm.gain;
+      const vel = (legato ? 0.62 : 1) * sm.gain * (o.vel != null ? 0.45 + 0.75 * o.vel : 1);
       const t = Math.max(when, c.currentTime + 0.005);
       const end = t + Math.max(0.08, Math.min(dur, sm.buf.duration - 0.05));
       g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vel, t + (legato ? 0.008 : 0.003));
@@ -7305,7 +7739,7 @@ akordy: chwyty     # albo: brzmiące
     const t0 = ctx.currentTime + 0.08; let prev = null;
     for (const n of soNotes().filter(x => x.b === SO.bar).sort((x, y) => x.q - y.q)) {
       const midi = tun[n.s] + n.f + stCapo(), dur = Math.max(0.08, n.d * b.secPerQ);
-      if (ok) GTR.play(kind, t0 + n.q * b.secPerQ, midi, dur, { bd: n.bd, bt: n.bt, vb: n.vb, lg: n.lg, prevMidi: prev });
+      if (ok) GTR.play(kind, t0 + n.q * b.secPerQ, midi, dur, { bd: n.bd, bt: n.bt, vb: n.vb, lg: n.lg, prevMidi: prev, vel: n.v });
       else A.tone(t0 + n.q * b.secPerQ, dur * 0.95, midi, 'triangle', 0.16, 2600, n.bd ? { semis: n.bd, type: n.bt || 'b' } : null);
       prev = midi;
     }
@@ -7370,7 +7804,8 @@ akordy: chwyty     # albo: brzmiące
       if (x.t0 < t - 0.05) continue;
       const when = now + (x.t0 - t) / rate, dur = (x.t1 - x.t0) / rate, midi = tun[n.s] + n.f + capo;
       const old = SP.voices[n.s]; if (old) old.stop(when);
-      SP.voices[n.s] = GTR.play(SP.kind, when, midi, dur, { bd: n.bd, bt: n.bt, vb: n.vb, lg: n.lg, prevMidi: SP.prevMidi });
+      const hum = ((n.b * 7 + Math.round(n.q * 8)) % 5 - 2) * 0.003; // mikro-czas ±6 ms, powtarzalny
+      SP.voices[n.s] = GTR.play(SP.kind, when + hum, midi, dur, { bd: n.bd, bt: n.bt, vb: n.vb, lg: n.lg, prevMidi: SP.prevMidi, vel: n.v });
       SP.prevMidi = midi;
     }
     if (SP.clickT < ahead) { if (SP.mode === 'clock' ? S.soClick !== false : !!S.soClickBack) for (const p of V.pulsesBetween(sg, SP.clickT, ahead, {})) { const at = now + (p.t - t) / rate; if (at > now) A.click(at, p.level); } SP.clickT = ahead; }
@@ -7385,7 +7820,7 @@ akordy: chwyty     # albo: brzmiące
   }
 
   /* ---------- generator solówek + biblioteka licków ---------- */
-  const GEN = { for: null, seed: 0, lib: null };
+  const GEN = { for: null, seed: 0, lib: null, cands: [], ci: 0, range: null, motif: null };
   async function libLoad() { if (GEN.lib) return GEN.lib; try { GEN.lib = (await DB.get('licks:lib')) || []; } catch (e) { GEN.lib = []; } return GEN.lib; }
   async function libSave() { try { await DB.put('licks:lib', GEN.lib || []); } catch (e) { toast('Nie mogę zapisać biblioteki licków: ' + e.message); } }
   async function libInfo() {
@@ -7439,27 +7874,60 @@ akordy: chwyty     # albo: brzmiące
     }
     return out;
   }
-  async function soGenerate(again) {
+  // motyw użytkownika: zaznaczone nuty (albo nuty w pierwszym takcie zakresu) → względne {q,d,m}
+  function soUserMotif(from, to) {
+    const tun = tuningArr(), capo = stCapo(); const sg = ST.song;
+    let L = [...SE.sel].filter(n => n.b >= from && n.b <= to);
+    if (L.length < 2) L = soNotes().filter(n => n.b === from);
+    if (L.length < 2) return null;
+    L = L.slice().sort((a, b) => a.b - b.b || a.q - b.q).slice(0, 8);
+    const q0 = seGq(L[0]);
+    return L.map(n => ({ q: seGq(n) - q0, d: n.d, m: tun[n.s] + n.f + capo + (n.bd >= 1 ? Math.round(n.bd) : 0), bd: n.bd, bt: n.bt }));
+  }
+  function soApplyCandidate(c, from, to, keepFrom) {
+    const m = ST.meta; if (!m) return;
+    const keep = (m.solo || []).filter(n => n.b < from || n.b > to || (keepFrom != null && n.b < keepFrom));
+    m.solo = keep.concat(keepFrom != null ? c.notes.filter(n => n.b >= keepFrom) : c.notes);
+    soSave(); SO.bar = from; SO.cur = 0; SO.sel = null; SE.sel.clear();
+    renderStudio(); seScrollTo(from, 0, false);
+  }
+  async function soGenerate(mode) {
+    // mode: false – nowe solo; 'again' – następny kandydat; 'motif' – rozwiń mój motyw
     const m = ST.meta, sg = ST.song; if (!m || !sg || !sg.bars.length) return;
     const from = Math.max(0, (+$('#soGenFrom').value || 1) - 1), to = Math.min(sg.bars.length - 1, (+$('#soGenTo').value || sg.bars.length) - 1);
     if (to < from) { toast('Sprawdź zakres taktów'); return; }
+    const info = $('#soGenInfo');
+    if (mode === 'again' && GEN.cands.length && GEN.range && GEN.range.from === from && GEN.range.to === to) {
+      GEN.ci = (GEN.ci + 1) % GEN.cands.length;
+      const c = GEN.cands[GEN.ci]; soApplyCandidate(c, from, to, GEN.motif ? GEN.motif.keepFrom : null);
+      info.innerHTML = `<b>Wersja ${GEN.ci + 1}/${GEN.cands.length}</b> · ${esc(c.text)}<br><span class="muted">Kolejne kliknięcie „Inna wersja” pokaże następnego kandydata; po ostatnim układam od nowa.</span>`;
+      if (GEN.ci === GEN.cands.length - 1) GEN.cands = [];
+      return;
+    }
+    let motif = null, keepFrom = null;
+    if (mode === 'motif') {
+      motif = soUserMotif(from, to);
+      if (!motif) { toast('Zaznacz 2–8 nut na pięciolinii (albo wpisz je w pierwszym takcie zakresu) – to będzie motyw'); return; }
+      keepFrom = null; // motyw jest realizowany przez generator jako pierwsza fraza (dokładnie Twoje wysokości i rytm)
+    }
     const existing = (m.solo || []).filter(n => n.b >= from && n.b <= to);
-    if (existing.length && !again && !confirm('W taktach ' + (from + 1) + '–' + (to + 1) + ' jest już ' + existing.length + ' dźwięków solówki. Zastąpić je nowym solo?')) return;
+    if (existing.length && mode === false && !confirm('W taktach ' + (from + 1) + '–' + (to + 1) + ' jest już ' + existing.length + ' dźwięków solówki. Zastąpić je nowym solo?')) return;
     const lib = $('#soGenLicks').checked ? await libLoad() : [];
     if (!SOLOGEN.BOOK.length) { try { const el = document.getElementById('lib-licks'); if (el) SOLOGEN.setBook(JSON.parse(el.textContent)); } catch (e) { console.warn(e); } }
     GEN.seed = (Date.now() ^ Math.floor(Math.random() * 1e9)) >>> 0;
-    const res = SOLOGEN.generate({ song: sg, level: +$('#soGenLevel').value, style: $('#soGenStyle').value, seed: GEN.seed, from, to, tuning: tuningArr(), frets: S.frets, capo: stCapo(), shift: stShift(), licks: lib, useBuiltin: $('#soGenLicks').checked });
-    // spójność: zmiany skal wymagane przez poziom – do zapisu utworu (akordy powyżej)
+    info.textContent = 'Układam i oceniam kandydatów…';
+    await new Promise(r => setTimeout(r, 20));
+    const res = SOLOCOMP.compose({ song: sg, level: +$('#soGenLevel').value, style: $('#soGenStyle').value, arc: $('#soGenArc').value, seed: GEN.seed, from, to, tuning: tuningArr(), frets: S.frets, capo: stCapo(), shift: stShift(), licks: lib, useBuiltin: $('#soGenLicks').checked, motif, candidates: 40 });
+    if (!res.notes.length) { info.textContent = 'Nie udało się ułożyć solówki w tym zakresie – sprawdź, czy takty mają akordy.'; return; }
     const edits = scaleEditsToText(res.edits);
     if (edits.length) commitText(V.rewriteTokens(editorText(), edits));
-    m.solo = (m.solo || []).filter(n => n.b < from || n.b > to).concat(res.notes);
-    soSave(); SO.bar = from; SO.cur = 0; SO.sel = null; SE.sel.clear();
-    renderStudio(); seScrollTo(from, 0, false);
+    GEN.cands = res.cands; GEN.ci = 0; GEN.range = { from, to }; GEN.motif = motif ? { keepFrom } : null;
+    soApplyCandidate(res.cands[0], from, to, keepFrom);
     const S2 = res.summary; const flat = !!(sg.key && sg.key.flat);
     $('#soGenAgain').disabled = false;
-    $('#soGenInfo').innerHTML = `<b>Solo ${esc(S2.level)} · ${esc(S2.style)}</b> – takty ${from + 1}–${to + 1}: ${S2.notes} dźwięków w ${S2.phrases} frazach, ${S2.bends} podciągnięć${S2.licks ? ', ' + S2.licks + ' fraz z biblioteki licków' : ''}.` + (S2.lickIds && S2.lickIds.length ? '<br><span class="muted">Frazy z materiałów: ' + esc(S2.lickIds.slice(0, 12).join(' · ')) + (S2.lickIds.length > 12 ? ' …' : '') + '</span>' : '') +
-      (S2.edits.length ? '<br>Zmiany skal (wpisane też przy akordach): ' + S2.edits.map(e => esc(prettyAcc(e.chord)) + ' (takt ' + e.bar + ') → ' + esc(prettyAcc(V.noteName(e.root, flat) + ' ' + e.scale.pl)) + ' <span class="muted">– ' + esc(e.why) + '</span>').join('; ') : '') +
-      '<br><span class="muted">Kliknij dźwięk, żeby go odsłuchać, Spacja gra solo z podkładem. Każdy dźwięk możesz poprawić ręcznie; „Inna wersja” układa solo od nowa.</span>';
+    info.innerHTML = `<b>Solo ${esc(S2.level)} · ${esc(S2.style)}</b> – takty ${from + 1}–${to + 1}. ${esc(S2.text)}` +
+      (S2.edits && S2.edits.length ? '<br>Zmiany skal (wpisane też przy akordach): ' + S2.edits.map(e => esc(prettyAcc(e.chord)) + ' (takt ' + e.bar + ') → ' + esc(prettyAcc(V.noteName(e.root, flat) + ' ' + e.scale.pl)) + ' <span class="muted">– ' + esc(e.why) + '</span>').join('; ') : '') +
+      `<br><span class="muted">Krytyk ocenił ${res.cands.length} najlepszych z 40 kandydatów. „Inna wersja” pokazuje kolejnych. Spacja gra solo z podkładem; każdy dźwięk możesz poprawić ręcznie.</span>`;
   }
   function bindSolo() {
     $('#soPlay').onclick = () => { if (SP.on) spPause(); else spStart(); };
@@ -7471,7 +7939,8 @@ akordy: chwyty     # albo: brzmiące
     $('#soVolSolo').oninput = e => { S.soVolSolo = +e.target.value; save(); GTR.vol(); };
     $('#soTone').onchange = e => { S.soTone = e.target.value; save(); A.ensure(); GTR.load(S.soTone).catch(() => { }); if (SP.on) { spPause(); spStart(); } };
     $('#soGenGo').onclick = () => soGenerate(false);
-    $('#soGenAgain').onclick = () => soGenerate(true);
+    $('#soGenAgain').onclick = () => soGenerate('again');
+    $('#soGenMotif').onclick = () => soGenerate('motif');
     $('#soLibAdd').onclick = () => $('#soLibFile').click();
     $('#soLibFile').onchange = e => { const fs = [...e.target.files]; e.target.value = ''; if (fs.length) libAddFiles(fs); };
     $('#soLibClear').onclick = async () => { const lib = await libLoad(); if (!lib.length) { toast('Twoja biblioteka jest pusta (wbudowane frazy zostają)'); return; } if (!confirm('Usunąć ' + lib.length + ' Twoich fraz z biblioteki licków?')) return; GEN.lib = []; await libSave(); libInfo(); };
