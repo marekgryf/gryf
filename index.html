@@ -534,6 +534,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
             <div class="seg" role="group" aria-label="Tryb diod solo">
               <button data-soled="live" aria-pressed="true" title="Świeci tylko dźwięk grany w tej chwili">Na bieżąco</button>
               <button data-soled="uklad" aria-pressed="false" title="Świecą naraz wszystkie dźwięki fragmentu (taktu, połowy taktu albo miary) – tak, jak układa się je pod palcami">Układy harmoniczne</button>
+              <button data-soled="scale" aria-pressed="false" title="Bez dźwięków solówki: świecą wybrane pozycje skali, zmieniane razem z akordami podkładu">Pozycje skal</button>
             </div>
             <label class="chk"><input type="checkbox" id="optSoloLook" checked> Zapowiadaj przygaszony następny dźwięk (albo następny układ)</label>
             <div class="row">
@@ -822,6 +823,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
                 <div class="seg" role="group" aria-label="Tryb diod solo">
                   <button data-soled="live" aria-pressed="true">dźwięki na bieżąco</button>
                   <button data-soled="uklad" aria-pressed="false">układy harmoniczne</button>
+                  <button data-soled="scale" aria-pressed="false">pozycje skal</button>
                 </div>
               </div>
               <p class="small muted">Gra od taktu wybranego wyżej. Pauza zatrzymuje podkład i solo w miejscu, w którym jesteś – kursor staje na granym dźwięku, możesz go od razu poprawić i grać dalej. Bez podkładu solo gra z klikiem. Brzmienie: sample gitar z soundfontu Musyng Kite (CC BY-SA 3.0).</p>
@@ -5493,7 +5495,7 @@ akordy: chwyty     # albo: brzmiące
     return out.sort((x, y) => x.b - y.b || x.q0 - y.q0);
   }
   function soloAt(tl, t) {
-    if (!tl || !tl.length || S.soloShow === 'off') return null;
+    if (!tl || !tl.length || S.soloShow === 'off' || S.soloLed === 'scale') return null;
     if (S.soloLed === 'uklad' && tl.segs) {
       const segs = tl.segs; let gi = segs.findIndex(g => g.t0 <= t + 1e-3 && t < g.t1 - 1e-3);
       const cur = tl.filter(x => x.t0 <= t + 1e-3 && t < x.t1 - 0.015);
@@ -7862,13 +7864,13 @@ akordy: chwyty     # albo: brzmiące
     const lane = $('#seLane'); if (lane) { const all = soNotes(); lane.querySelectorAll('.nt').forEach(el => { const n = all[+el.dataset.ni]; el.classList.toggle('on', !!(n && n.b === b && n.q <= q + 1e-6 && q < n.q + n.d)); }); }
   }
   /* ---------- gryf ---------- */
-  function seScaleState(ev) {
+  function seScaleState(ev, full) {
     const tun = tuningArr(); let st = null;
     if (ev && !ev.chord.nc) {
       const ch = V.transposeChord(ev.chord, stShift()), sRoot = ev.scaleRootPc == null ? null : (ev.scaleRootPc + stShift()) % 12;
       const cells = ev.posSet ? (ev.scaleObj && !ev.chordOnly ? V.positionMap(ev.scaleObj.mask, sRoot, tun, ev.posSet, S.frets) : V.positionMap(ch.mask, ch.root, tun, ev.posSet, S.frets)) : null;
       st = V.fretState({ tuning: tun, frets: S.frets, chord: ch, show: 'scale', capo: stCapo(), scaleMask: ev.scaleObj && !ev.chordOnly ? ev.scaleObj.mask : ch.mask, scaleRoot: ev.scaleObj && !ev.chordOnly ? sRoot : ch.root, fretMin: 0, fretMax: 99, cells, dimOut: true });
-      st = st.map(r => r.map(c => c ? Object.assign({}, c, { dim: true, finger: null }) : null));
+      if (!full) st = st.map(r => r.map(c => c ? Object.assign({}, c, { dim: true, finger: null }) : null));
     }
     return st;
   }
@@ -7879,9 +7881,10 @@ akordy: chwyty     # albo: brzmiące
     const bi = Math.max(0, Math.min(sg.bars.length - 1, V.barAtSec(sg, Math.max(0, tl)))), b = sg.bars[bi];
     const ev = soEventAt(bi, (tl - b.startSec) / b.secPerQ);
     const sd = soloAt(SP.tl, tl);
-    const key = 'S' + (ev ? sg.events.indexOf(ev) : -1) + '|' + S.brightness + (sd ? sd.key : '');
+    const key = 'S' + S.soloLed + (ev ? sg.events.indexOf(ev) : -1) + '|' + S.brightness + (sd ? sd.key : '');
     if (key === lastLedKey) return; lastLedKey = key;
     const ch = ev && !ev.chord.nc ? V.transposeChord(ev.chord, stShift()) : null;
+    if (S.soloLed === 'scale') { B.pushFrame(stateToLeds(seScaleState(ev, true), null)); return; }
     const b0 = seScaleState(ev), base = b0 ? b0.map(r => r.map(c => c ? Object.assign({}, c, { dim: false }) : null)) : null;
     B.pushFrame(stateToLeds(sd ? soloOverlay(base, sd, ch) : base, null));
   }
@@ -7889,6 +7892,7 @@ akordy: chwyty     # albo: brzmiące
     if (!SO.fb) { SO.fb = new Fretboard($('#fbSolo')); SO.fb.capoFn = stCapo; }
     const sg = ST.song, tun = tuningArr(), all = soNotes(), flat = !!(sg.key && sg.key.flat);
     const ev = soEventAt(SO.bar, SO.cur);
+    if (S.soloLed === 'scale') { SO.fb.update(seScaleState(ev, true) || Array.from({ length: 6 }, () => Array(S.frets + 1).fill(null)), null, flat, 0); return; }
     let st = seScaleState(ev);
     if (!st) st = Array.from({ length: 6 }, () => Array(S.frets + 1).fill(null));
     const ch0 = ev && !ev.chord.nc ? V.transposeChord(ev.chord, stShift()) : null;
