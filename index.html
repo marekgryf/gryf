@@ -413,7 +413,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.4.0</span></small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.4.1</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -935,6 +935,8 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
             <div class="row">
               <button class="btn" id="soImpBtn" title="Guitar Pro, MusicXML, MIDI, PDF, tabulatura tekstowa albo nagranie gitary (mp3, wav, m4a…)">Importuj: Guitar Pro, MIDI, PDF, nagranie gitary…</button>
               <button class="btn" id="soFromBacking" title="Rozpoznaje dźwięki gitary z podkładu tego utworu (sieć neuronowa Basic Pitch)">Rozpoznaj solo z podkładu</button>
+              <button class="btn" id="soMidiOut" title="Plik MIDI samego sola: tempo i metrum utworu, bendy jako pitch bend (±2 półtony), vibrato, hammer-on/pull-off jako legato, slajdy jako glissando, dynamika. Przeciągnij na ścieżkę z wirtualną gitarą w Cubase.">Eksportuj solo do MIDI (z kodami gitary)</button>
+              <label class="chk" title="Każda struna na osobnym kanale MIDI (e=1 … E=6) – tak rozumieją to instrumenty gitarowe: Ample Sound, Shreddage, MusicLab RealGuitar. Dla zwykłych instrumentów zostaw wyłączone."><input type="checkbox" id="soMidiStr"> kanał = struna</label>
               <input type="file" id="soImpFile" accept=".gp,.gp3,.gp4,.gp5,.gpx,.gp7,.gp8,.xml,.musicxml,.mxl,.pdf,.txt,.tab,.mid,.midi,audio/*,.mp3,.wav,.m4a,.aac,.flac,.ogg,application/pdf,text/plain,audio/midi" hidden>
             </div>
             <div class="impbox" id="soImp" hidden></div>
@@ -967,6 +969,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
                 <button class="btn primary" id="soPlay">▶ Graj solo z podkładem</button>
                 <span class="small mono grow" id="soPlayPos">od taktu 1</span>
                 <label class="chk" title="Metronom podczas grania solo (osobno: bez podkładu i z podkładem)"><input type="checkbox" id="soClick"> Klik</label>
+                <label class="chk" title="Zamiast brzmienia z przeglądarki solo gra na żywo do Cubase przez port MIDI z zakładki Urządzenie (Kompozytor ↔ Cubase)"><input type="checkbox" id="soMidiLive"> graj przez MIDI do Cubase</label>
                 <label class="f">Brzmienie <select id="soTone"><option value="overdrive">przester (blues, rock)</option><option value="clean">czyste (pop, jazz)</option><option value="dist">mocny przester (prog, alt)</option></select></label>
               </div>
               <div class="row">
@@ -5047,7 +5050,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.4.0';
+  const VERSION = '3.4.1';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -7805,6 +7808,7 @@ akordy: chwyty     # albo: brzmiące
       const when = now + (x.t0 - t) / rate, dur = (x.t1 - x.t0) / rate, midi = tun[n.s] + n.f + capo;
       const old = SP.voices[n.s]; if (old) old.stop(when);
       const hum = ((n.b * 7 + Math.round(n.q * 8)) % 5 - 2) * 0.003; // mikro-czas ±6 ms, powtarzalny
+      if (S.soMidiLive && typeof mbSendSoloNote === 'function') { mbSendSoloNote(when + hum, n, midi, dur, SP.prevMidi); if (S.soMidiMute !== false) { SP.prevMidi = midi; continue; } }
       SP.voices[n.s] = GTR.play(SP.kind, when + hum, midi, dur, { bd: n.bd, bt: n.bt, vb: n.vb, lg: n.lg, prevMidi: SP.prevMidi, vel: n.v });
       SP.prevMidi = midi;
     }
@@ -10290,6 +10294,86 @@ akordy: chwyty     # albo: brzmiące
     window.__pgMB = { MB, MBR, P, mbMsg };
   }
 
+  /* ================= SOLO → MIDI z kodami gitarowymi (plik i na żywo) =================
+     bend: pitch bend (zakres ±2 półtony przez RPN), br: bend i powrót, pb: prebend; vibrato: falowanie pitch bend ~5,5 Hz;
+     h/p: legato (poprzedni dźwięk nachodzi ~25 ms, mniejsza velocity); s: glissando pitch bendem z poprzedniego dźwięku;
+     dynamika z v; opcja „kanał = struna” (e=1 … E=6) dla instrumentów gitarowych (Ample Sound, Shreddage, MusicLab). */
+  const PB_RANGE = 2; // półtony
+  const pbVal = semis => Math.round(8192 + Math.max(-1, Math.min(1, semis / PB_RANGE)) * 8191);
+  // zdarzenia MIDI jednego dźwięku solo w sekundach względnych (t=0 start dźwięku) → [{t, d:[bytes]}]
+  function soloNoteEvents(n, midi, durSec, chn, prevMidi) {
+    const ev = []; const vel = Math.round(30 + 95 * (n.v != null ? n.v : 0.8) * (n.lg === 'h' || n.lg === 'p' ? 0.75 : 1));
+    const base = n.bd ? midi - n.bd : midi; // dźwięk dociskany
+    const ramp = Math.min(0.14, durSec * 0.3);
+    const pb = (t, semis) => ev.push({ t, d: [0xE0 | chn, pbVal(semis) & 127, pbVal(semis) >> 7] });
+    const steps = (t0, t1, s0, s1) => { const k = Math.max(2, Math.round((t1 - t0) / 0.012)); for (let i = 0; i <= k; i++) pb(t0 + (t1 - t0) * i / k, s0 + (s1 - s0) * i / k); };
+    let bendNow = 0;
+    if (n.bd && n.bt === 'pb') { pb(0, n.bd); bendNow = n.bd; }
+    else if (n.lg === 's' && prevMidi != null && Math.abs(prevMidi - base) <= PB_RANGE && prevMidi !== base) { pb(0, prevMidi - base); steps(0.005, 0.07, prevMidi - base, 0); bendNow = 0; }
+    else pb(0, 0);
+    ev.push({ t: 0, d: [0x90 | chn, base, Math.max(1, Math.min(127, vel))] });
+    if (n.bd && n.bt !== 'pb') { steps(0.02, 0.02 + ramp, 0, n.bd); bendNow = n.bd; if (n.bt === 'br') { const t1 = durSec * 0.55; steps(t1, t1 + ramp, n.bd, 0); bendNow = 0; } }
+    if (n.bd && n.bt === 'pb') { const t1 = durSec * 0.45; steps(t1, t1 + ramp, n.bd, 0); bendNow = 0; }
+    if (n.vb && durSec > 0.3) { // vibrato od ~0,25 s, ±18 centów, 5,5 Hz
+      const vStart = Math.max(0.2, n.bd && n.bt !== 'pb' ? 0.04 + ramp : 0.2); const center = n.bd && n.bt === 'b' ? n.bd : (n.bd && n.bt === 'br' ? n.bd : 0);
+      for (let t = vStart; t < durSec - 0.02; t += 0.03) { const ph = (t - vStart) * 5.5 * 2 * Math.PI; const depth = 0.18 * Math.min(1, (t - vStart) / 0.3); let c = center; if (n.bt === 'br' && t > durSec * 0.55) c = 0; if (n.bt === 'pb' && t > durSec * 0.45) c = 0; pb(t, c + Math.sin(ph) * depth); }
+    }
+    const off = durSec + ((n.lg === 'h' || n.lg === 'p') ? 0 : -0.01);
+    ev.push({ t: Math.max(0.03, off), d: [0x80 | chn, base, 0] });
+    ev.push({ t: Math.max(0.035, off + 0.005), d: [0xE0 | chn, 0, 64] }); // pitch bend do zera po dźwięku
+    return ev;
+  }
+  function soloMidiBytes(song, notes, opts) {
+    const PPQ = 480; const tun = opts.tuning, capo = opts.capo || 0; const perString = !!opts.perString;
+    const vlq = n => { const b = [n & 0x7f]; while ((n >>= 7)) b.unshift((n & 0x7f) | 0x80); return b; };
+    const txt = s => [...String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ł/g, 'l').replace(/Ł/g, 'L').replace(/[^\x20-\x7e]/g, '')].map(ch => ch.charCodeAt(0));
+    const meta = (tick, ty, data) => ({ tick, o: -1, d: [0xff, ty, ...vlq(data.length), ...data] });
+    const track = evs => { evs.sort((a, b) => a.tick - b.tick || a.o - b.o); const out = []; let last = 0; for (const e of evs) { out.push(...vlq(Math.max(0, e.tick - last)), ...e.d); last = Math.max(last, e.tick); } out.push(0, 0xff, 0x2f, 0); return [0x4d, 0x54, 0x72, 0x6b, (out.length >>> 24) & 255, (out.length >>> 16) & 255, (out.length >>> 8) & 255, out.length & 255, ...out]; };
+    // tempo / metrum
+    const t0 = [meta(0, 0x03, txt((song.title || 'POWER GRYF') + ' - solo'))]; let lastQpm = null, lastSig = '';
+    for (const b of song.bars) { const at = Math.round(b.startQ * PPQ); if (b.qpm !== lastQpm) { const us = Math.round(60e6 / b.qpm); t0.push(meta(at, 0x51, [(us >> 16) & 255, (us >> 8) & 255, us & 255])); lastQpm = b.qpm; } const sig = b.num + '/' + b.den; if (sig !== lastSig) { t0.push(meta(at, 0x58, [b.num, Math.round(Math.log2(b.den)), 24, 8])); lastSig = sig; } }
+    for (const s of song.sections) { const b = song.bars[s.bar]; if (b) t0.push(meta(Math.round(b.startQ * PPQ), 0x06, txt(s.name))); }
+    const tracks = [track(t0)];
+    const L = [meta(0, 0x03, txt('Solo gitara (POWER GRYF)'))];
+    const chans = perString ? [5, 4, 3, 2, 1, 0] : [0]; // struna 0 = niska E → kanał 6
+    for (const chn of chans) { L.push({ tick: 0, o: 0, d: [0xC0 | chn, 29] }); // RPN 0: zakres pitch bend
+      L.push({ tick: 0, o: 0, d: [0xB0 | chn, 101, 0] }, { tick: 0, o: 0, d: [0xB0 | chn, 100, 0] }, { tick: 0, o: 0, d: [0xB0 | chn, 6, PB_RANGE] }, { tick: 0, o: 0, d: [0xB0 | chn, 38, 0] }, { tick: 0, o: 0, d: [0xB0 | chn, 101, 127] }, { tick: 0, o: 0, d: [0xB0 | chn, 100, 127] }); }
+    const sorted = notes.slice().sort((a, b) => a.b - b.b || a.q - b.q); let prevMidi = null;
+    for (let i = 0; i < sorted.length; i++) {
+      const n = sorted[i]; const b = song.bars[n.b]; if (!b) continue;
+      const midi = tun[n.s] + n.f + capo + (n.bd ? n.bd : 0); const baseMidi = midi - (n.bd || 0); if (baseMidi < 0 || baseMidi > 127) continue;
+      const startQ = b.startQ + n.q; const spq = 60 / b.qpm; let durSec = n.d * spq;
+      // legato: następny dźwięk h/p – ten dźwięk trwa 25 ms dłużej (nachodzi), żeby instrument zagrał legato
+      const nx = sorted[i + 1]; if (nx && (nx.lg === 'h' || nx.lg === 'p')) { const nb = song.bars[nx.b]; const gap = (nb.startQ + nx.q) - startQ; if (gap > 0 && gap * spq < durSec + 0.3) durSec = gap * spq + 0.025; }
+      const chn = perString ? [5, 4, 3, 2, 1, 0][n.s] : 0;
+      for (const e of soloNoteEvents(n, midi, durSec, chn, prevMidi)) L.push({ tick: Math.round((startQ + e.t / spq) * PPQ), o: e.d[0] >= 0x90 && e.d[0] < 0xA0 ? 2 : e.d[0] >= 0x80 && e.d[0] < 0x90 ? 1 : 0, d: e.d });
+      prevMidi = midi;
+    }
+    tracks.push(track(L));
+    const head = [0x4d, 0x54, 0x68, 0x64, 0, 0, 0, 6, 0, 1, 0, tracks.length, (PPQ >> 8) & 255, PPQ & 255];
+    return new Uint8Array([...head, ...tracks.flat()]);
+  }
+  // na żywo: dźwięk solo do Cubase przez port wyjściowy (ten sam model artykulacji)
+  function mbSendSoloNote(tc, n, midi, durSec, prevMidi) {
+    if (!mbOutReady()) return; const o = MBR.out; const perString = !!MB.outPerString; const chn = perString ? [5, 4, 3, 2, 1, 0][n.s] : (((MB.outCh || 1) - 1) & 15);
+    if (!MBR.pbSet) { MBR.pbSet = true; for (const c of (perString ? [0, 1, 2, 3, 4, 5] : [chn])) try { o.send([0xB0 | c, 101, 0]); o.send([0xB0 | c, 100, 0]); o.send([0xB0 | c, 6, PB_RANGE]); o.send([0xB0 | c, 38, 0]); } catch (e) { } }
+    const t0 = mbOutTime(tc);
+    try { for (const e of soloNoteEvents(n, midi, durSec, chn, prevMidi)) o.send(e.d, t0 + e.t * 1000); } catch (e) { }
+  }
+  function bindSoloMidi() {
+    const btn = $('#soMidiOut'); if (!btn) return;
+    btn.onclick = () => {
+      const sg = ST.song, m = ST.meta; const notes = (m && m.solo) || [];
+      if (!sg || !notes.length) { toast('Najpierw ułóż albo wpisz solo'); return; }
+      const bytes = soloMidiBytes(sg, notes, { tuning: tuningArr(), capo: stCapo(), perString: $('#soMidiStr').checked });
+      downloadBytes(bytes, fileSlug(sg.title) + '-solo.mid', 'audio/midi');
+      toast('Zapisano MIDI solo: ' + notes.length + ' dźwięków, bendy jako pitch bend (zakres ±2), vibrato, legato, slajdy, dynamika. Przeciągnij plik na ścieżkę z instrumentem gitary w Cubase.');
+    };
+    $('#soMidiStr').checked = !!S.soMidiStr; $('#soMidiStr').onchange = e => { S.soMidiStr = e.target.checked; MB.outPerString = e.target.checked; save(); MBR.pbSet = false; };
+    MB.outPerString = !!S.soMidiStr;
+    $('#soMidiLive').checked = !!S.soMidiLive; $('#soMidiLive').onchange = e => { S.soMidiLive = e.target.checked; save(); if (e.target.checked && !mbOutReady()) toast('Włącz „Wysyłaj akordy z Kompozytora do Cubase” w zakładce Urządzenie i wybierz port wyjściowy – tym samym portem pójdzie solo'); };
+  }
+
 
   /* ================= START ================= */
   function applyEdition() {
@@ -10304,7 +10388,7 @@ akordy: chwyty     # albo: brzmiące
     { const v = document.getElementById('appVer'); if (v) v.textContent = VERSION; }
     applyEdition();
     if (!songs.length) { songs = [{ id: newId(), text: BLANK_SONG }]; saveSongs(); setlists.forEach(l => l.ids.push(songs[0].id)); saveSets(); }
-    bindPlay(); bindScales(); bindSongs(); bindDevice(); bindStudio(); bindComposer(); bindPractice(); bindBridge();
+    bindPlay(); bindScales(); bindSongs(); bindDevice(); bindStudio(); bindComposer(); bindPractice(); bindBridge(); bindSoloMidi();
     loadSong(S.lastSong && songs.find(s => s.id === S.lastSong) ? S.lastSong : (setSongs()[0] || songs[0]).id);
     renderScaleDetail();
     micNote('Śledzenie słucha zespołu przez mikrofon i dociąga zegar do perkusji. Działa w wersji otwartej w Bluefy lub Safari.');
