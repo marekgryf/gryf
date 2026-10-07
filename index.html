@@ -364,7 +364,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.4</span></small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.5</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -540,8 +540,9 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
             <span class="small muted">Dźwięki solo na diodach:</span>
             <div class="seg" role="group" aria-label="Tryb diod solo">
               <button data-soled="live" aria-pressed="true" title="Świeci tylko dźwięk grany w tej chwili">Na bieżąco</button>
-              <button data-soled="uklad" aria-pressed="false" title="Świecą naraz wszystkie dźwięki fragmentu (taktu, połowy taktu albo miary) – tak, jak układa się je pod palcami">Układy harmoniczne</button>
+              <button data-soled="soloseg" aria-pressed="false" title="Świecą naraz wszystkie dźwięki solówki z fragmentu (taktu, połowy taktu albo miary)">Układy solówki</button>
               <button data-soled="scale" aria-pressed="false" title="Bez dźwięków solówki: świecą wybrane pozycje skali, zmieniane razem z akordami podkładu">Pozycje skal</button>
+              <button data-soled="uklad" aria-pressed="false" title="Pozycje skal z Twoimi zmianami: dźwięki włączone i wyłączone kliknięciem na gryfie w Pracowni">Układy harmoniczne</button>
             </div>
             <label class="chk"><input type="checkbox" id="optSoloLook" checked> Zapowiadaj przygaszony następny dźwięk (albo następny układ)</label>
             <div class="row">
@@ -808,8 +809,9 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
                 <span class="small muted">Diody i gryf poniżej:</span>
                 <div class="seg" role="group" aria-label="Tryb diod solo">
                   <button data-soled="live" aria-pressed="true">dźwięki na bieżąco</button>
-                  <button data-soled="uklad" aria-pressed="false">układy harmoniczne</button>
+                  <button data-soled="soloseg" aria-pressed="false">układy solówki</button>
                   <button data-soled="scale" aria-pressed="false">pozycje skal</button>
+                  <button data-soled="uklad" aria-pressed="false" title="Pozycje skal z Twoimi zmianami – klikaj dźwięki na gryfie poniżej">układy harmoniczne</button>
                 </div>
               </div>
               <p class="small muted">Gra od taktu wybranego wyżej. Pauza zatrzymuje podkład i solo w miejscu, w którym jesteś – kursor staje na granym dźwięku, możesz go od razu poprawić i grać dalej. Bez podkładu solo gra z klikiem. Brzmienie: sample gitar z soundfontu Musyng Kite (CC BY-SA 3.0).</p>
@@ -866,6 +868,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
             </div>
             <p class="small" id="seMsg" style="color:var(--bad)"></p>
             <div class="fb-wrap" id="fbSolo"></div>
+            <p class="small muted" id="soLayHint" hidden>Tryb „układy harmoniczne”: gryf pokazuje układ akordu pod kursorem. Kliknij kropkę, żeby ją wyłączyć, albo puste miejsce, żeby dodać dźwięk – zmiana obejmuje każde takie samo miejsce w utworze (zakres ustawisz w panelu akordu).</p>
             <details class="help se-keys">
               <summary>Skróty klawiatury i mysz</summary>
               <div class="kgrid small">
@@ -1391,6 +1394,17 @@ akordy: chwyty     # albo: brzmiące
     for (const s of SCALES) if (s.slug === n.replace(/#/g, 's')) return s;
     return null;
   }
+  // układ harmoniczny: dźwięki dopisane/wyłączone na gryfie, np. „+2.7-3.5” (struna 1 = wysoka e, próg na gryfie)
+  function parseLayout(str) {
+    if (!str) return null; const add = new Set(), del = new Set();
+    for (const m of String(str).matchAll(/([+-])([1-6])\.(\d{1,2})/g)) { const k = (6 - +m[2]) * 100 + +m[3]; (m[1] === '+' ? add : del).add(k); }
+    return add.size || del.size ? { add, del } : null;
+  }
+  function layoutString(L) {
+    if (!L) return null; const enc = (sg, k) => sg + (6 - Math.floor(k / 100)) + '.' + (k % 100);
+    const s = [...L.add].sort((a, b) => a - b).map(k => enc('+', k)).join('') + [...L.del].sort((a, b) => a - b).map(k => enc('-', k)).join('');
+    return s || null;
+  }
   function formula(mask) { return intervalsFromMask(mask).map(i => INTERVAL_NAMES[i]).join(' '); }
   // skala z dopisanymi / usuniętymi dźwiękami: „minor-pentatonic+b5+9-4” (stopnie względem prymy skali)
   const DEG_SEMI = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11, 9: 2, 11: 5, 13: 9 };
@@ -1723,6 +1737,8 @@ akordy: chwyty     # albo: brzmiące
           if (tok === '-' || tok === '.' || tok === '–' || tok === '/' || tok === '%') cont = true;
           else chord = parseChord(tok);
           let scale = null, scaleRoot = null, scaleMode = null, positions = null, posStr = null;
+          let layStr = null, layout = null;
+          if (scaleSpec != null && scaleSpec.includes('!')) { const li = scaleSpec.indexOf('!'); layStr = scaleSpec.slice(li + 1) || null; scaleSpec = scaleSpec.slice(0, li); layout = parseLayout(layStr); }
           if (scaleSpec != null && scaleSpec.includes('~')) {
             const ti = scaleSpec.indexOf('~'); posStr = scaleSpec.slice(ti + 1); scaleSpec = scaleSpec.slice(0, ti);
             positions = parsePositions(posStr);
@@ -1735,7 +1751,7 @@ akordy: chwyty     # albo: brzmiące
             else if (/^(key|tonacja)$/i.test(sname)) scaleMode = 'key';
             else { scale = findScale(sname.replace(/[-_]/g, ' ')) || findScaleMod(sname); if (!scale) throw new Error('Nie znam skali „' + sname + '”'); }
           }
-          parsed.push({ src: t, chord, cont, dur, scale, scaleRoot, scaleMode, shape, positions, tk: { sym: tok, shapeStr, durStr, scaleSpec: scaleSpec || null, posStr }, loc: synthetic ? null : { ln, cell: ci, tok: ti } });
+          parsed.push({ src: t, chord, cont, dur, scale, scaleRoot, scaleMode, shape, positions, layout, tk: { sym: tok, shapeStr, durStr, scaleSpec: scaleSpec || null, posStr, layStr }, loc: synthetic ? null : { ln, cell: ci, tok: ti } });
         } catch (e) { song.errors.push({ line: ln, msg: e.message }); }
       }
       // rozkład długości
@@ -1760,7 +1776,7 @@ akordy: chwyty     # albo: brzmiące
           else if (target) bar.events.push({ ...target, bar: bar.index, startInBar: pos, durQ: d, tied: true, absorbed: [], tieLoc: p.loc, rep: rp });
           else bar.events.push({ chord: { nc: true, symbol: 'N.C.' }, bar: bar.index, startInBar: pos, durQ: d, src: '-', loc: p.loc, tk: p.tk, absorbed: [], rep: rp });
         } else {
-          bar.events.push({ chord: p.chord, scale: p.scale, scaleRoot: p.scaleRoot, scaleMode: p.scaleMode, shape: p.shape, positions: p.positions, bar: bar.index, startInBar: pos, durQ: d, src: p.src, loc: p.loc, tk: p.tk, absorbed: [], rep: rp });
+          bar.events.push({ chord: p.chord, scale: p.scale, scaleRoot: p.scaleRoot, scaleMode: p.scaleMode, shape: p.shape, positions: p.positions, layout: p.layout, bar: bar.index, startInBar: pos, durQ: d, src: p.src, loc: p.loc, tk: p.tk, absorbed: [], rep: rp });
         }
         lastEvent = bar.events[bar.events.length - 1] || lastEvent;
         pos += d;
@@ -1853,7 +1869,7 @@ akordy: chwyty     # albo: brzmiące
     return lines.join('\n');
   }
   function composeToken(tk) {
-    const sc = (tk.scaleSpec || '') + (tk.posStr ? '~' + tk.posStr : '');
+    const sc = (tk.scaleSpec || '') + (tk.posStr ? '~' + tk.posStr : '') + (tk.layStr ? '!' + tk.layStr : '');
     return tk.sym + (tk.shapeStr ? '=' + tk.shapeStr : '') + (tk.durStr ? ':' + tk.durStr : '') + (sc ? '@' + sc : '');
   }
   const DIRECTIVE_KEYS = { capo: ['capo', 'kapodaster', 'kapo'], bpm: ['bpm', 'tempo'], tonacja: ['tonacja', 'key', 'skala'], tytul: ['tytul', 'title'], akordy: ['akordy', 'zapis', 'chords'], metrum: ['metrum', 'meter', 'time', 'takt'], odliczanie: ['odliczanie', 'countin', 'count'] };
@@ -2278,7 +2294,7 @@ akordy: chwyty     # albo: brzmiące
   }
 
   G.VF = {
-    findScaleMod, scaleModSpec, parsePositions, posString, posSort, posLabel, pentaBase, positionInfo, positionCells, positionMap, positionWindows, POS_WIN, POS_SYS,
+    findScaleMod, scaleModSpec, parseLayout, layoutString, parsePositions, posString, posSort, posLabel, pentaBase, positionInfo, positionCells, positionMap, positionWindows, POS_WIN, POS_SYS,
     applyTiming, lineTokens, rewriteTokens, composeToken, setDirective,
     transposeChord, parseShape, shapeText, chordVoicings, assignVoicings, voicingState,
     addScale, ALIAS, SHARP, FLAT, INTERVAL_NAMES, parseNote, noteName, maskFromIntervals, intervalsFromMask, rotateMask, bitCount, norm,
@@ -4380,7 +4396,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.0.4';
+  const VERSION = '3.0.5';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -5532,8 +5548,8 @@ akordy: chwyty     # albo: brzmiące
     return out.sort((x, y) => x.b - y.b || x.q0 - y.q0);
   }
   function soloAt(tl, t) {
-    if (!tl || !tl.length || S.soloShow === 'off' || S.soloLed === 'scale') return null;
-    if (S.soloLed === 'uklad' && tl.segs) {
+    if (!tl || !tl.length || S.soloShow === 'off' || S.soloLed === 'scale' || S.soloLed === 'uklad') return null;
+    if (S.soloLed === 'soloseg' && tl.segs) {
       const segs = tl.segs; let gi = segs.findIndex(g => g.t0 <= t + 1e-3 && t < g.t1 - 1e-3);
       const cur = tl.filter(x => x.t0 <= t + 1e-3 && t < x.t1 - 0.015);
       const g = gi >= 0 ? segs[gi] : null, ng = segs.find(x => x.t0 > t + 1e-3);
@@ -5571,7 +5587,24 @@ akordy: chwyty     # albo: brzmiące
     });
     return st;
   }
+  // układ harmoniczny: pozycje skali z dźwiękami włączonymi/wyłączonymi na gryfie (zapis „!+2.7-3.5” przy akordzie)
+  function applyLayout(state, ev, ch) {
+    const L = ev && ev.layout; if (!L) return state;
+    const tun = tuningArr(); const st = state ? state.map(r => r.slice()) : Array.from({ length: 6 }, () => Array(S.frets + 1).fill(null));
+    for (const k of L.del) { const s = Math.floor(k / 100), f = k % 100; if (st[s] && f <= S.frets) st[s][f] = null; }
+    for (const k of L.add) {
+      const s = Math.floor(k / 100), f = k % 100; if (!st[s] || f > S.frets) continue;
+      const pc = (tun[s] + f) % 12, rel = ch && !ch.nc ? ((pc - ch.root) % 12 + 12) % 12 : 0;
+      const old = st[s][f];
+      st[s][f] = old && !old.dim ? old : Object.assign({}, old || {}, { pc, role: V.INTERVAL_NAMES[rel], cls: rel === 0 ? 'root' : (old && old.cls) || 'scale', dim: false, full: true, finger: old && old.finger != null ? old.finger : null, added: true });
+    }
+    return st;
+  }
   function stateForEvent(ev, ei) {
+    const st = stateForEvent0(ev, ei);
+    return S.soloLed === 'uklad' && ev && ev.layout && !ev.chord.nc ? applyLayout(st, ev, soundingChord(ev)) : st;
+  }
+  function stateForEvent0(ev, ei) {
     if (!ev || !ev.chord || ev.chord.nc) return null;
     const ch = soundingChord(ev), t = capoShift();
     const sRoot = ev.scaleRootPc == null ? null : (ev.scaleRootPc + t) % 12;
@@ -6513,7 +6546,6 @@ akordy: chwyty     # albo: brzmiące
         <button data-sm="key" aria-pressed="${curMode === 'key'}"${ST.song.key ? '' : ' disabled title="Ustaw tonację utworu"'}>Tonacja</button>
         <button data-sm="chord" aria-pressed="${curMode === 'chord'}">Tylko akord</button>
       </div>
-      ${ev.scaleObj && !ev.chordOnly ? (() => { const r = ev.scaleRootPc, m = ev.scaleObj.mask, fl = spellFlat(r, m, flat); const cs = new Set([...ch.tones.keys()].map(o => (ch.root + o - r + 120) % 12)); return `<div class="stack" style="gap:4px"><span class="small muted">Dźwięki skali – kliknij, żeby dodać albo usunąć (dowolnie wiele):</span><div class="seg wrap notes-pick" id="inNotes" role="group" aria-label="Dźwięki skali">${V.INTERVAL_NAMES.map((nm, i) => `<button data-niv="${i}" aria-pressed="${!!(m & (1 << i))}"${i === 0 ? ' disabled' : ''} class="${cs.has(i) ? 'ct' : ''}" title="${esc(prettyAcc(V.noteName((r + i) % 12, fl)))}${cs.has(i) ? ' – dźwięk akordu' : ''}"><b>${esc(prettyAcc(nm === '1' ? '1' : nm))}</b><span class="pos-sub">${esc(prettyAcc(V.noteName((r + i) % 12, fl)))}</span></button>`).join('')}</div>${ev.scaleObj.modOf ? `<button class="btn" id="inNotesReset">Przywróć: ${esc(prettyAcc(ev.scaleObj.modOf.pl))}</button>` : ''}</div>`; })() : ''}
       <div class="stack" style="gap:4px"><span class="small muted">Pozycje:</span><div id="inPos">${ev.chord.nc ? '' : (() => { const sR = ev.scaleObj && !ev.chordOnly; const m = sR ? ev.scaleObj.mask : ev.chord.mask, r = sR ? ev.scaleRootPc : ev.chord.root; return posPickerHtml(m, r, ev.posSet, 'data-ipos', spellFlat(r, m, flat)); })()}</div>${ev.chord.nc ? '' : `<button class="btn" id="inPosAll" title="Ustawia te same pozycje (w skali każdego akordu) dla wszystkich akordów utworu – zapis „pozycje:” na początku utworu">Te pozycje we wszystkich akordach utworu</button>`}</div>
       ${ST.song.positions && ST.song.positions !== 'all' && !tk.posStr ? '<p class="small muted">Domyślne pozycje utworu: ' + V.posSort([...ST.song.positions]).join('+') + '</p>' : ''}
       <div class="row">
@@ -6527,8 +6559,10 @@ akordy: chwyty     # albo: brzmiące
       <div class="seg" role="group" aria-label="Podgląd">
         <button data-pv="scale" aria-pressed="${ST.view === 'scale'}">${NEG ? 'Negatyw + akord' : 'Skala + akord'}</button>
         <button data-pv="grip" aria-pressed="${ST.view === 'grip'}">Chwyt</button>
+        <button data-pv="uklad" aria-pressed="${ST.view === 'uklad'}" title="Układ harmoniczny na diodach: kliknij dźwięk na gryfie, żeby go włączyć albo wyłączyć">Układ (diody)</button>
       </div>
       <div class="fb-wrap" id="stFb"></div>
+      <div class="row"><span class="small muted grow" id="inLayHint" hidden>Układ harmoniczny: kliknij kropkę, żeby ją wyłączyć, albo puste miejsce, żeby dodać dźwięk. Widać to na diodach w trybie „Układy harmoniczne”. Zakres zmiany – jak wyżej.</span><button class="btn" id="inLayReset" hidden>Przywróć pozycje skali</button></div>
       <div class="row">
         <button class="btn" id="inPlayChord">▶ Akord</button>
         <button class="btn" id="inPlayScale">▶ Skala</button>
@@ -6579,7 +6613,7 @@ akordy: chwyty     # albo: brzmiące
       const b = e.target.closest('[data-smask]'); if (!b) return;
       const root = +b.dataset.sroot, sc = V.scaleByMask(+b.dataset.smask), slug = scaleSlug(sc);
       const rootName = V.noteName(root, spellFlat(root, sc.mask, flat));
-      tokenEdit(ev, { ...ev.tk, scaleSpec: root === ev.chord.root ? slug : rootName + ':' + slug }, false, true);
+      tokenEdit(ev, { ...ev.tk, scaleSpec: root === ev.chord.root ? slug : rootName + ':' + slug, layStr: null }, false, true);
     };
   }
   // jedna skala na cały utwór
@@ -6692,13 +6726,29 @@ akordy: chwyty     # albo: brzmiące
     else txt = 'Brak chwytu dla tego akordu';
     $('#inVTxt').textContent = txt;
     const sRoot = ev.scaleRootPc == null ? null : (ev.scaleRootPc + shift) % 12;
-    if (ST.view === 'grip') state = V.voicingState(v, ch, tuningArr(), S.frets, capo, null, 0);
+    if (ST.view === 'uklad') state = layoutStateFor(ev);
+    else if (ST.view === 'grip') state = V.voicingState(v, ch, tuningArr(), S.frets, capo, null, 0);
     else if (NEG) state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: 'negChord', capo, scaleMask: ev.chordOnly || !ev.scaleObj ? ch.mask : ev.scaleObj.mask, scaleRoot: ev.chordOnly || !ev.scaleObj ? ch.root : sRoot, fretMin: 0, fretMax: 99 });
     else state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : 'both', capo, scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: 0, fretMax: 99, cells: ev.posSet ? (ev.scaleObj && !ev.chordOnly ? V.positionMap(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionMap(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets)) : null, dimOut: true });
     fbStudio.fb.cfg = '';
     const fl = spellFlat(ev.chord.root, ev.scaleObj ? ev.scaleObj.mask : ev.chord.mask, ev.chord.flat);
     fbStudio.fb.update(state, null, fl, shift);
     ST.preview = { state, v, ch };
+    const lh = $('#inLayHint'); if (lh) { lh.hidden = ST.view !== 'uklad'; }
+    if ($('#inLayReset')) $('#inLayReset').hidden = ST.view !== 'uklad' || !ev.layout;
+  }
+  // układ harmoniczny akordu: pozycje skali (jak w trybie „Pozycje skal”) + zmiany z gryfu
+  function layoutStateFor(ev) {
+    const base = seScaleState(ev, true) || Array.from({ length: 6 }, () => Array(S.frets + 1).fill(null));
+    return applyLayout(base, ev, ev.chord.nc ? null : V.transposeChord(ev.chord, stShift()));
+  }
+  // klik w gryf: włącz / wyłącz dźwięk w układzie (zakres jak przy zmianie skali)
+  function layoutToggle(ev, s, f) {
+    if (!ev || !ev.tk || !ev.loc || ev.chord.nc) { toast('Wybierz akord'); return; }
+    const st = layoutStateFor(ev), c = st[s] && st[s][f], lit = !!(c && !c.dim);
+    const L = { add: new Set(ev.layout ? ev.layout.add : []), del: new Set(ev.layout ? ev.layout.del : []) }, k = s * 100 + f;
+    if (lit) { if (L.add.has(k)) L.add.delete(k); else L.del.add(k); } else { if (L.del.has(k)) L.del.delete(k); else L.add.add(k); }
+    tokenEdit(ev, { ...ev.tk, layStr: V.layoutString(L) }, false, true);
   }
   // identyczne fragmenty: ten sam wiersz zapisu (fraza) z tymi samymi akordami i długościami -> ten sam akord w nim
   const locKey = l => l.ln + ':' + l.cell + ':' + l.tok;
@@ -6763,29 +6813,15 @@ akordy: chwyty     # albo: brzmiące
     if (!$('#inScales')) return;
     $$('[data-sm]').forEach(b => b.onclick = () => {
       const m = b.dataset.sm;
-      tokenEdit(ev, { ...tk, scaleSpec: m === 'auto' ? null : m === 'key' ? 'tonacja' : 'akord' }, false, true);
+      tokenEdit(ev, { ...tk, scaleSpec: m === 'auto' ? null : m === 'key' ? 'tonacja' : 'akord', layStr: null }, false, true);
     });
-    // dopisywanie / usuwanie dźwięków skali (zakres jak przy zmianie skali)
-    if ($('#inNotes')) $('#inNotes').onclick = e => {
-      const b = e.target.closest('[data-niv]'); if (!b || b.disabled) return;
-      const i = +b.dataset.niv, sc = ev.scaleObj, base = sc.modOf || sc, newMask = sc.mask ^ (1 << i);
-      if ((newMask & ~1) === 0) { toast('Skala musi mieć choć jeden dźwięk oprócz prymy'); return; }
-      const r = ev.scaleRootPc, flat = spellFlat(ev.chord.root, ev.chord.mask, ev.chord.flat);
-      const slug = scaleSlug(base) + V.scaleModSpec(base, newMask);
-      const rootName = V.noteName(r, spellFlat(r, newMask, flat));
-      tokenEdit(ev, { ...tk, scaleSpec: r === ev.chord.root ? slug : rootName + ':' + slug }, false, true);
-    };
-    if ($('#inNotesReset')) $('#inNotesReset').onclick = () => {
-      const base = ev.scaleObj.modOf, r = ev.scaleRootPc, slug = scaleSlug(base), flat = spellFlat(ev.chord.root, ev.chord.mask, ev.chord.flat);
-      tokenEdit(ev, { ...tk, scaleSpec: r === ev.chord.root ? slug : V.noteName(r, spellFlat(r, base.mask, flat)) + ':' + slug }, false, true);
-    };
     if ($('#inPosAll')) $('#inPosAll').onclick = () => {
       const val = ev.posSet && ev.posSet !== 'all' && ev.posSet.size ? V.posString(ev.posSet) : 'cały';
       const edits = [], seen = new Set();
       for (const e of ST.song.events) {
-        if (!e.loc || !e.tk || e.tied || e.viaPercent || e.tk.posStr == null) continue;
+        if (!e.loc || !e.tk || e.tied || e.viaPercent || (e.tk.posStr == null && e.tk.layStr == null)) continue;
         const k = locKey(e.loc); if (seen.has(k)) continue; seen.add(k);
-        edits.push({ ...e.loc, text: V.composeToken({ ...e.tk, posStr: null }) });
+        edits.push({ ...e.loc, text: V.composeToken({ ...e.tk, posStr: null, layStr: null }) });
       }
       let text = V.rewriteTokens(editorText(), edits);
       text = V.setDirective(text, 'pozycje', val, 'pozycje');
@@ -6794,7 +6830,7 @@ akordy: chwyty     # albo: brzmiące
     };
     $('#inPos').onclick = e => posPickerClick(e, ev.posSet, 'data-ipos', ns => {
       const posStr = ns ? V.posString(ns) : (ST.song.positions && ST.song.positions !== 'all' ? 'cały' : null);
-      tokenEdit(ev, { ...tk, posStr }, false, true);
+      tokenEdit(ev, { ...tk, posStr, layStr: null }, false, true);
     }, () => renderInspector());
     $('#inRoot').onchange = e => { ST.scaleRoot = +e.target.value; renderScaleChoices(ev); };
     $('#inScaleQ').oninput = e => { ST.scaleQ = e.target.value; renderScaleChoices(ev); };
@@ -6802,8 +6838,10 @@ akordy: chwyty     # albo: brzmiące
       const b = e.target.closest('[data-mask]'); if (!b) return;
       const sc = V.scaleByMask(+b.dataset.mask); const slug = scaleSlug(sc);
       const rootName = V.noteName(ST.scaleRoot, spellFlat(ST.scaleRoot, sc.mask, ev.chord.flat));
-      tokenEdit(ev, { ...tk, scaleSpec: ST.scaleRoot === ev.chord.root ? slug : rootName + ':' + slug }, false, true);
+      tokenEdit(ev, { ...tk, scaleSpec: ST.scaleRoot === ev.chord.root ? slug : rootName + ':' + slug, layStr: null }, false, true);
     };
+    $('#stFb').onclick = e => { if (ST.view !== 'uklad' || !fbStudio.fb) return; const c = fbStudio.fb.hit(e); if (c) layoutToggle(ev, c.s, c.f); };
+    if ($('#inLayReset')) $('#inLayReset').onclick = () => tokenEdit(ev, { ...ev.tk, layStr: null }, false, true);
     $$('[data-pv]').forEach(b => b.onclick = () => { ST.view = b.dataset.pv; $$('[data-pv]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderStudioPreview(ev); });
     $('#inVPrev').onclick = () => { const { list } = stVoicings(ev); if (!list.length) return; ST.vIdx = ((ST.vIdx < 0 ? 0 : ST.vIdx) - 1 + list.length) % list.length; ST.view = 'grip'; $$('[data-pv]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.pv === 'grip'))); renderStudioPreview(ev); };
     $('#inVNext').onclick = () => { const { list } = stVoicings(ev); if (!list.length) return; ST.vIdx = (ST.vIdx + 1) % list.length; ST.view = 'grip'; $$('[data-pv]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.pv === 'grip'))); renderStudioPreview(ev); };
@@ -8024,20 +8062,23 @@ akordy: chwyty     # albo: brzmiące
     if (key === lastLedKey) return; lastLedKey = key;
     const ch = ev && !ev.chord.nc ? V.transposeChord(ev.chord, stShift()) : null;
     if (S.soloLed === 'scale') { B.pushFrame(stateToLeds(seScaleState(ev, true), null)); return; }
+    if (S.soloLed === 'uklad') { B.pushFrame(stateToLeds(ev ? layoutStateFor(ev) : null, null)); return; }
     const b0 = seScaleState(ev), base = b0 ? b0.map(r => r.map(c => c ? Object.assign({}, c, { dim: false }) : null)) : null;
     B.pushFrame(stateToLeds(sd ? soloOverlay(base, sd, ch) : base, null));
   }
   function seFret() {
     if (!SO.fb) { SO.fb = new Fretboard($('#fbSolo')); SO.fb.capoFn = stCapo; }
+    { const h = $('#soLayHint'); if (h) h.hidden = S.soloLed !== 'uklad'; }
     const sg = ST.song, tun = tuningArr(), all = soNotes(), flat = !!(sg.key && sg.key.flat);
     const ev = soEventAt(SO.bar, SO.cur);
     if (S.soloLed === 'scale') { SO.fb.update(seScaleState(ev, true) || Array.from({ length: 6 }, () => Array(S.frets + 1).fill(null)), null, flat, 0); return; }
+    if (S.soloLed === 'uklad') { SO.fb.update(ev ? layoutStateFor(ev) : Array.from({ length: 6 }, () => Array(S.frets + 1).fill(null)), null, flat, 0); return; }
     let st = seScaleState(ev);
     if (!st) st = Array.from({ length: 6 }, () => Array(S.frets + 1).fill(null));
     const ch0 = ev && !ev.chord.nc ? V.transposeChord(ev.chord, stShift()) : null;
     const put = (n, o) => { if (n.f > S.frets) return; const pc = (tun[n.s] + n.f) % 12, rel = ch0 ? ((pc - ch0.root) % 12 + 12) % 12 : 0; st[n.s][n.f] = Object.assign({ pc, role: V.INTERVAL_NAMES[rel], cls: 'solo', finger: n.g == null ? 1 : n.g, solo: true }, o); };
     // fragment: układ harmoniczny wokół kursora (jak na diodach w trybie „układy”) albo cały takt
-    const seg = S.soloLed === 'uklad' ? soloSegments(sg, all).find(g => g.b === SO.bar && g.q0 <= SO.cur + 1e-6 && SO.cur < g.q1 - 1e-6) : null;
+    const seg = S.soloLed === 'soloseg' ? soloSegments(sg, all).find(g => g.b === SO.bar && g.q0 <= SO.cur + 1e-6 && SO.cur < g.q1 - 1e-6) : null;
     const scope = seg ? seg.notes : all.filter(n => n.b === SO.bar);
     scope.filter(n => Math.abs(n.q - SO.cur) > 1e-6).forEach(n => put(n, { next: true }));
     all.filter(n => n.b === SO.bar && Math.abs(n.q - SO.cur) <= 1e-6).forEach(n => put(n, {}));
@@ -8439,6 +8480,7 @@ akordy: chwyty     # albo: brzmiące
     const el = $('#fbSolo'); let fd = null;
     el.addEventListener('pointerdown', e => {
       if (!SO.fb || !ST.meta) return; const c = SO.fb.hit(e); if (!c) return;
+      if (S.soloLed === 'uklad') { e.preventDefault(); layoutToggle(soEventAt(SO.bar, SO.cur), c.s, c.f); return; }
       const at = soNotes().find(n => n.b === SO.bar && Math.abs(n.q - SO.cur) < 1e-6 && n.s === c.s && n.f === c.f);
       fd = { c, at, pid: e.pointerId }; el.setPointerCapture(e.pointerId); e.preventDefault();
     });
