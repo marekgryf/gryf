@@ -357,7 +357,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja 3.0</small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.3</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -4343,7 +4343,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.0';
+  const VERSION = '3.0.3';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -8343,6 +8343,7 @@ akordy: chwyty     # albo: brzmiące
     if (!['neg', 'negChord', 'grip'].includes(S.show)) S.show = 'neg';
   }
   function init() {
+    { const v = document.getElementById('appVer'); if (v) v.textContent = VERSION; }
     applyEdition();
     if (!songs.length) { songs = [{ id: newId(), text: BLANK_SONG }]; saveSongs(); setlists.forEach(l => l.ids.push(songs[0].id)); saveSets(); }
     bindPlay(); bindScales(); bindSongs(); bindDevice(); bindStudio();
