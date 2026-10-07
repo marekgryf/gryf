@@ -351,6 +351,7 @@ main.wide { max-width: 1680px; }
 @media (hover: none) { .se-touch { display: flex; } }
 .se-keys .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 16px;margin-top:8px}
 kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#1b2130}
+.se-over .dragtip{position:absolute;padding:3px 8px;border-radius:6px;background:#4fd1ff;color:#08121a;font:700 12px var(--body);white-space:nowrap;box-shadow:0 2px 8px #0008}
 
 </style>
 </head><body>
@@ -804,7 +805,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
                 <button class="btn danger" id="soLibClear">Wyczyść bibliotekę</button>
               </div>
               <div class="small" id="soGenInfo"></div>
-              <p class="small muted">Poziomy: <b>prosta</b> – pentatonika w jednej pozycji, ćwierćnuty i ósemki, pojedyncze podciągnięcia; <b>średnio zaawansowana</b> – dwie pozycje, triole, podciągnięcia z powrotem, hammer-on/pull-off, slajdy, dźwięki przejściowe; <b>zaawansowana</b> – trzy pozycje, szesnastki, prebendy, kolor skali na długich akordach; <b>mistrzowska</b> – cały gryf, szybkie przebiegi, napięcia. Jeśli poziom wymaga innej skali na akordzie (np. harmonicznej na E7 w a-moll), zmiana trafia też do akordów powyżej. Zapis: <span class="mono">7b9</span> podciągnięcie do brzmienia 9. progu, <span class="mono">7b9r7</span> z powrotem, <span class="mono">9pb11r9</span> prebend, <span class="mono">h p /</span> hammer-on, pull-off, slajd, <span class="mono">~</span> vibrato. Na diodach przy podciągnięciu dociskany próg świeci kolorem palca, a próg docelowy mruga przygaszony.</p>
+              <p class="small muted">Poziomy: <b>prosta</b> – pentatonika w jednej pozycji, ćwierćnuty i ósemki, pojedyncze podciągnięcia; <b>średnio zaawansowana</b> – dwie pozycje, triole, podciągnięcia z powrotem, hammer-on/pull-off, slajdy, dźwięki przejściowe; <b>zaawansowana</b> – trzy pozycje, szesnastki, prebendy, kolor skali na długich akordach; <b>mistrzowska</b> – cały gryf, szybkie przebiegi, napięcia. Jeśli poziom wymaga innej skali na akordzie (np. harmonicznej na E7 w a-moll), zmiana trafia też do akordów powyżej – ale tylko tam, gdzie przy akordzie nie ma wpisanej skali. Skal ustawionych przez Ciebie (albo przyciskiem „Ułóż skale frazami”) generator nigdy nie zmienia. Zapis: <span class="mono">7b9</span> podciągnięcie do brzmienia 9. progu, <span class="mono">7b9r7</span> z powrotem, <span class="mono">9pb11r9</span> prebend, <span class="mono">h p /</span> hammer-on, pull-off, slajd, <span class="mono">~</span> vibrato. Na diodach przy podciągnięciu dociskany próg świeci kolorem palca, a próg docelowy mruga przygaszony.</p>
             </details>
             <div class="soplay">
               <div class="row">
@@ -856,7 +857,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
               <summary>Skróty klawiatury i mysz</summary>
               <div class="kgrid small">
                 <span><kbd>klik</kbd> dźwięk – zaznacz i odsłuchaj</span><span><kbd>Ctrl</kbd>+klik – dodaj do zaznaczenia</span><span><kbd>Shift</kbd>+klik – zaznacz zakres</span><span>przeciągnij po pustym – zaznacz ramką</span>
-                <span>przeciągnij dźwięk w bok – przesuń w czasie</span><span>w górę/dół: na pięciolinii – wysokość, w tabulaturze i na linii – inna struna (ten sam dźwięk)</span><span>na gryfie przeciągnij kropkę – inny próg/struna</span><span>klik w pusty gryf – wpisz dźwięk w miejscu kursora</span>
+                <span>przeciągnij dźwięk w bok – przesuń w czasie</span><span>w górę/dół: na pięciolinii – o stopień gamy (półtony: ↑ ↓), w tabulaturze i na linii – inna struna (ten sam dźwięk); podczas przeciągania słychać dźwięk, nad którym trzymasz</span><span>na gryfie przeciągnij kropkę – inny próg/struna</span><span>klik w pusty gryf – wpisz dźwięk w miejscu kursora</span>
                 <span><kbd>0</kbd>–<kbd>9</kbd> próg (dwie cyfry szybko = 10–24) na strunie kursora albo w zaznaczonych</span><span><kbd>Shift</kbd>+<kbd>1</kbd>–<kbd>4</kbd> palec, <kbd>Shift</kbd>+<kbd>0</kbd> pusta</span><span><kbd>←</kbd> <kbd>→</kbd> kursor albo przesuń zaznaczone</span><span><kbd>↑</kbd> <kbd>↓</kbd> pół tonu (zaznaczone) albo struna kursora; <kbd>Alt</kbd>+<kbd>↑</kbd><kbd>↓</kbd> inna struna, ten sam dźwięk</span>
                 <span><kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> rozszerz zaznaczenie, <kbd>Tab</kbd> następny dźwięk</span><span><kbd>+</kbd> <kbd>−</kbd> dłuższa/krótsza wartość, <kbd>.</kbd> kropka, <kbd>T</kbd> triola</span><span><kbd>B</kbd> podciągnięcie (pełne → ½ → 1½ → brak), <kbd>R</kbd> z powrotem, <kbd>P</kbd> prebend</span><span><kbd>H</kbd> hammer-on/pull-off, <kbd>S</kbd> slajd, <kbd>V</kbd> vibrato</span>
                 <span><kbd>Ctrl</kbd>+<kbd>C</kbd> <kbd>X</kbd> <kbd>V</kbd> kopiuj, wytnij, wklej w miejscu kursora</span><span><kbd>Ctrl</kbd>+<kbd>Z</kbd> cofnij, <kbd>Ctrl</kbd>+<kbd>Y</kbd> ponów, <kbd>Delete</kbd>/<kbd>Backspace</kbd> usuń</span><span><kbd>Ctrl</kbd>+<kbd>A</kbd> zaznacz całe solo (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd> takt), <kbd>Esc</kbd> odznacz</span><span><kbd>Spacja</kbd> graj/pauza, <kbd>Enter</kbd> odsłuchaj zaznaczone, <kbd>PgUp</kbd>/<kbd>PgDn</kbd> takt, <kbd>Ctrl</kbd>+kółko powiększenie</span>
@@ -3022,6 +3023,8 @@ akordy: chwyty     # albo: brzmiące
     const find = n => V.findScale(n);
     for (const ev of song.events) {
       if (ev.tied || !ev.chord || ev.chord.nc || ev.bar < from || ev.bar > to || !ev.loc || ev.viaPercent) continue;
+      // skala wpisana przy akordzie (przez Ciebie albo „Ułóż skale frazami”) jest nienaruszalna – generator jej nie zmienia
+      if (ev.tk && ev.tk.scaleSpec) continue;
       const lk = ev.loc.ln + ':' + ev.loc.cell + ':' + ev.loc.tok; if (seen.has(lk)) continue; seen.add(lk);
       const ch = ev.chord; const pcs = [...ch.tones].filter(([, r]) => r !== 'B').map(([o]) => mod(ch.root + o, 12));
       const fits = (root, mask) => pcs.every(pc => mask & (1 << mod(pc - root, 12)));
@@ -8121,6 +8124,37 @@ akordy: chwyty     # albo: brzmiące
     if (SE.tabCal && SE.staves && SE.staves.length && p.y > SE.staves[SE.staves.length - 1].y - 14) { const str = Math.round((p.y - SE.tabCal.A) / SE.tabCal.B); if (str >= 1 && str <= 6) return str - 1; }
     return null;
   }
+  // cel przeciągania w pionie: pięciolinia = półtony (ta sama struna, gdy się da), tabulatura/linia = inna struna, ten sam dźwięk
+  function seDragTarget(d, n, dy) {
+    const tun = tuningArr();
+    if (d.where === 'score') {
+      const midi = seDiatonic(tun[n.s] + n.f, -Math.round(dy / (4.5 * seZoom()))), dp = midi - (tun[n.s] + n.f);
+      if (n.f + dp >= 0 && n.f + dp <= S.frets) return { midi, s: n.s, f: n.f + dp };
+      let best = null; for (let s = 0; s < 6; s++) { const f = midi - tun[s]; if (f >= 0 && f <= S.frets && (!best || Math.abs(s - n.s) < Math.abs(best.s - n.s))) best = { midi, s, f }; }
+      return best;
+    }
+    const rh = d.where === 'lane' ? SE.laneRow : Math.abs(SE.tabCal ? SE.tabCal.B : 11 * seZoom());
+    const k = Math.round(dy / rh), ds = d.where === 'lane' && !S.highTop ? k : -k, s2 = n.s + ds;
+    if (s2 < 0 || s2 > 5) return null; const f2 = seRefret(n, s2); if (f2 == null) return null;
+    return { midi: tun[n.s] + n.f, s: s2, f: f2 };
+  }
+  // krok po pięciolinii = następny dźwięk gamy z oznaczeń przykluczowych (półtony: strzałki ↑ ↓)
+  function seDiatonic(m, k) {
+    const M = SE_MAJ_S.indexOf(seKs(ST.song)) >= 0 ? SE_MAJ_S.indexOf(seKs(ST.song)) : SE_MAJ_F.indexOf(seKs(ST.song));
+    const set = new Set([0, 2, 4, 5, 7, 9, 11].map(x => (M + x) % 12)), dir = Math.sign(k);
+    for (let i = 0; i < Math.abs(k); i++) { let g = 0; do { m += dir; g++; } while (!set.has(((m % 12) + 12) % 12) && g < 3); }
+    return m;
+  }
+  let seVoice = null;
+  function seHearMidi(midi, n) {
+    try {
+      const ctx = A.ensure(); const kind = $('#soTone').value;
+      if (seVoice && seVoice.stop) { try { seVoice.stop(ctx.currentTime + 0.02); } catch (e) { } }
+      seVoice = null;
+      if (GTR.sets[kind]) { GTR.chain(); seVoice = GTR.play(kind, ctx.currentTime + 0.01, midi, 0.45, {}); }
+      else { GTR.load(kind).catch(() => { }); A.tone(ctx.currentTime + 0.01, 0.3, midi, 'triangle', 0.16, 2600); }
+    } catch (e) { }
+  }
   function seBindPointer() {
     const sc = $('#seScroll'), inner = $('#seInner');
     document.addEventListener('pointerdown', e => { const was = SE.active; SE.active = !!e.target.closest('#stSolo') && !e.target.closest('input, select, textarea, details'); if (was !== SE.active) $('#stSolo').classList.toggle('se-on', SE.active); }, true);
@@ -8169,6 +8203,16 @@ akordy: chwyty     # albo: brzmiące
       if (!d.moved && Math.abs(dx) + Math.abs(dy) < 6) return; d.moved = true;
       const ov = $('#seOver'); ov.querySelectorAll('.sbox').forEach(b => b.style.transform = `translate(${dx}px,${dy}px)`);
       $('#seLane').querySelectorAll('.nt.sel').forEach(b => b.style.transform = `translate(${dx}px,${dy}px)`);
+      // odsłuch w trakcie szukania: dźwięk, na którym akurat trzymasz
+      const lead = SE.anchor && SE.sel.has(SE.anchor) ? SE.anchor : [...SE.sel][0]; if (!lead) return;
+      const tgt = seDragTarget(d, lead, dy);
+      let tip = ov.querySelector('.dragtip'); if (!tip) { tip = document.createElement('div'); tip.className = 'dragtip'; ov.appendChild(tip); }
+      tip.style.left = (d.x + 14) + 'px'; tip.style.top = (d.y - 30) + 'px';
+      if (!tgt) { tip.textContent = 'poza gryfem'; return; }
+      const sg = ST.song, flat = !!(sg.key && sg.key.flat);
+      tip.textContent = prettyAcc(V.noteName(tgt.midi % 12, flat)) + (Math.floor(tgt.midi / 12) - 1) + ' · struna ' + (6 - tgt.s) + ', próg ' + tgt.f;
+      const k = tgt.midi + ':' + tgt.s;
+      if (k !== d.lastK) { d.lastK = k; seHearMidi(tgt.midi + stCapo(), lead); }
     });
     const end = e => {
       const d = SE.drag; if (!d || d.pid !== e.pointerId) return; SE.drag = null;
@@ -8182,7 +8226,7 @@ akordy: chwyty     # albo: brzmiące
       let dq = 0; if (t) { const G = seGq({ b: t.b, q: Math.round(t.q / st) * st }); dq = Math.round((G - seGq(lead)) / st) * st; }
       // wysokość: pięciolinia = półtony, tabulatura/linia = struna (ten sam dźwięk)
       const dy = d.y - d.y0; let ds = 0, dp = 0;
-      if (d.where === 'score') dp = -Math.round(dy / (4.5 * seZoom()));
+      if (d.where === 'score') { const ld = SE.anchor && SE.sel.has(SE.anchor) ? SE.anchor : L[0]; const tun0 = tuningArr(); dp = seDiatonic(tun0[ld.s] + ld.f, -Math.round(dy / (4.5 * seZoom()))) - (tun0[ld.s] + ld.f); }
       else { const rh = d.where === 'lane' ? SE.laneRow : Math.abs(SE.tabCal ? SE.tabCal.B : 11 * seZoom()); const k = Math.round(dy / rh); ds = d.where === 'lane' && !S.highTop ? k : -k; }
       const tun = tuningArr();
       if (dq) { const tg = L.map(n => seFromGq(seGq(n) + dq)); if (tg.some(x => !x)) dq = 0; }
