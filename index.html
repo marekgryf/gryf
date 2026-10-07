@@ -364,7 +364,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.6</span></small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.8</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -589,6 +589,15 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
             <div class="row" id="scTags"></div>
             <div class="ivs" id="scIvs" aria-label="Interwały skali – dotknij, aby zmienić"></div>
             <p class="small muted">Dotknij interwału, aby zbudować własną skalę. Nazwa pojawi się, jeśli taki układ ma nazwę.</p>
+            <div class="row">
+              <span class="small muted">Kolory na gryfie i diodach:</span>
+              <div class="seg" role="group" aria-label="Kolory skali">
+                <button data-sccol="fingers" aria-pressed="true">palce (1 czerwony, 2 zielony, 3 niebieski, 4 żółty)</button>
+                <button data-sccol="mono" aria-pressed="false">jeden kolor (pryma czerwona)</button>
+              </div>
+              <input type="color" id="monoColor" value="#2f6dff" title="Kolor wspólny" style="width:44px;height:32px;border:1px solid var(--line);border-radius:6px;background:none;padding:2px">
+              <label class="f" style="min-width:150px">Jasność koloru <span class="mono" id="monoLevelVal">40%</span><input type="range" id="monoLevel" min="10" max="100" value="40"></label>
+            </div>
             <div class="fb-wrap" id="fbScale"></div>
             <div class="stack" style="gap:4px"><span class="small muted">Pozycje:</span><div id="scPos"></div></div>
             <div class="flegend" id="fingerLegend"></div>
@@ -4397,7 +4406,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.0.6';
+  const VERSION = '3.0.8';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -4422,7 +4431,8 @@ akordy: chwyty     # albo: brzmiące
   /* ---------- ustawienia ---------- */
   const DEF = {
     frets: 14, tuning: 'Standard E', lefty: false, highTop: true, brightness: 60, leadMs: 40, ledEnable: true,
-    colors: { root: '#ff2a1f', third: '#ffb800', fifth: '#1f8fff', seventh: '#a24bff', tension: '#00e0b8', bass: '#ff5cc8', scale: '#cfd8ff', preview: '#ffffff', out: '#ff0000', chordNeg: '#e8f0ff', f0: '#ffffff', f1: '#ff1a1a', f2: '#1fdc3c', f3: '#1f5bff', f4: '#ffd400' },
+    colors: { root: '#ff2a1f', third: '#ffb800', fifth: '#1f8fff', seventh: '#a24bff', tension: '#00e0b8', bass: '#ff5cc8', scale: '#cfd8ff', preview: '#ffffff', out: '#ff0000', chordNeg: '#e8f0ff', f0: '#ffffff', f1: '#ff1a1a', f2: '#1fdc3c', f3: '#1f5bff', f4: '#ffd400', mono: '#2f6dff' },
+    scColor: 'fingers', monoLevel: 40,
     fingerColors: true, ledDimOut: false, posSys: 'C', soloShow: 'over', soloLed: 'live', soloLook: 1, soVolBack: 80, soVolSolo: 80, soTone: 'overdrive',
     scaleDim: 22, show: 'both', capo: 0, capoMode: 'shapes', labels: 'note', fretMin: 0, fretMax: 15, preview: 2,
     click: false, sub: false, countIn: true, tapStart: false, clickT: true, subT: false, countInT: true,
@@ -4592,7 +4602,7 @@ akordy: chwyty     # albo: brzmiące
         const cell = state ? state[s][f] : null;
         const pv = previewSet && previewSet.has(s * 100 + f);
         const fg = cell && (S.fingerColors || cell.solo) && cell.finger != null ? cell.finger : null;
-        const k = cell ? cell.cls + cell.role + pv + S.labels + shift + flat + (cell.grip ? 'g' : '') + '|' + fg + (cell.dim ? 'd' : '') + (cell.full ? 'F' : '') + (cell.next ? 'n' : '') + (cell.sel ? 's' : '') + S.colors['f' + fg] : (pv ? 'pv' : '');
+        const k = cell ? cell.cls + cell.role + pv + S.labels + shift + flat + (cell.grip ? 'g' : '') + '|' + fg + (cell.dim ? 'd' : '') + (cell.full ? 'F' : '') + (cell.next ? 'n' : '') + (cell.sel ? 's' : '') + S.colors['f' + fg] + ROLE_COLOR(cell.cls) + (cell.mono ? S.monoLevel : '') : (pv ? 'pv' : '');
         if (k === c.key) continue; c.key = k;
         if (!cell && !pv) { c.g.style.display = 'none'; continue; }
         c.g.style.display = '';
@@ -4605,7 +4615,7 @@ akordy: chwyty     # albo: brzmiące
           const isScale = cell.cls === 'scale' || cell.cls === 'chordNeg';
           const col = fg != null ? S.colors['f' + fg] : ROLE_COLOR(cell.cls);
           c.dot.setAttribute('fill', col);
-          c.dot.setAttribute('opacity', cell.next ? '.38' : cell.dim ? '.16' : fg != null ? (isScale && cell.cls !== 'root' && !cell.full ? '.62' : '1') : cell.full ? '.85' : isScale ? '.38' : '1');
+          c.dot.setAttribute('opacity', cell.next ? '.38' : cell.dim ? '.16' : cell.mono ? String(Math.min(1, .35 + (S.monoLevel ?? 40) / 100)) : fg != null ? (isScale && cell.cls !== 'root' && !cell.full ? '.62' : '1') : cell.full ? '.85' : isScale ? '.38' : '1');
           // tonika w kolorach palców: biała obwódka
           const rootMark = fg != null && !cell.dim && (cell.cls === 'root' || cell.role === 'R' || cell.role === '1');
           c.dot.setAttribute('stroke', cell.sel ? '#fff' : rootMark ? '#fff' : 'none'); c.dot.setAttribute('stroke-width', cell.sel ? '4' : rootMark ? '3' : '0');
@@ -5445,11 +5455,10 @@ akordy: chwyty     # albo: brzmiące
         if (cell.bendTarget && cell.blinkOff) continue;
         const fg = (S.fingerColors || cell.solo) && cell.finger != null ? cell.finger : null;
         rgb = hexToRgb(fg != null ? S.colors['f' + fg] : ROLE_COLOR(cell.cls));
+        // jedna jasność dla wszystkich świecących diod (ustawiona suwakiem); przygaszone tylko zapowiedzi i dźwięki poza pozycją
         if (cell.next) k = br * 0.22;
         else if (cell.dim) k = br * 0.08;
-        else if (cell.full) k = br * 0.85;
-        else if (fg == null && (cell.cls === 'scale' || cell.cls === 'chordNeg')) k = br * S.scaleDim / 100;
-        else if (fg != null && cell.cls === 'scale') k = br * Math.max(S.scaleDim, 45) / 100;
+        else if (cell.mono) k = br * (S.monoLevel ?? 40) / 100;
       }
       if (rgb) leds[ledIndex(s, f)] = rgb.map(v => Math.round(v * k));
     }
@@ -5623,9 +5632,13 @@ akordy: chwyty     # albo: brzmiące
       scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: S.fretMin, fretMax: S.fretMax, cells: evWindows(ev, ch, sRoot), dimOut: true
     });
   }
+  // bez wybranych pozycji: palcowanie całego gryfu (wszystkie pozycje CAGED) – te same kolory palców wszędzie
+  const ALL_POS = new Set(['C1', 'C2', 'C3', 'C4', 'C5']);
+  function fullNeckCells(mask, root) { try { return V.positionMap(mask, root, tuningArr(), ALL_POS, S.frets); } catch (e) { return null; } }
   function evWindows(ev, ch, sRoot) {
-    if (!ev.posSet) return null;
-    return ev.scaleObj && !ev.chordOnly ? V.positionMap(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionMap(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets);
+    const sc = ev.scaleObj && !ev.chordOnly;
+    if (!ev.posSet) return NEG ? null : sc ? fullNeckCells(ev.scaleObj.mask, sRoot) : fullNeckCells(ch.mask, ch.root);
+    return sc ? V.positionMap(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionMap(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets);
   }
   const posLabel = ev => ev && ev.posSet ? ' · poz. ' + V.posSort([...ev.posSet]).join('+') : '';
   // wybór pozycji: system (CAGED / 3NPS / od toniki) + numery; można łączyć pozycje z różnych systemów
@@ -6054,7 +6067,7 @@ akordy: chwyty     # albo: brzmiące
   // zakładka Skale: każda zmiana od razu na diodach (gdy utwór nie gra)
   function scaleLeds() {
     if (P.running || $('#view-scales').hidden || !SC.state) return;
-    P.manual = { key: 's' + SC.root + ':' + SC.mask + ':' + (SC.chordShown ? SC.chordShown.symbol : '') + ':' + (SC.pos && SC.pos.size ? V.posString(SC.pos) : '') + S.fingerColors + S.show, state: SC.state }; lastLedKey = '';
+    P.manual = { key: 's' + SC.root + ':' + SC.mask + ':' + (SC.chordShown ? SC.chordShown.symbol : '') + ':' + (SC.pos && SC.pos.size ? V.posString(SC.pos) : '') + S.fingerColors + S.show + S.scColor + S.monoLevel, state: SC.state }; lastLedKey = '';
   }
   function chordLeds() {
     if (P.running || !SC.exState) return;
@@ -6070,11 +6083,14 @@ akordy: chwyty     # albo: brzmiące
     $('#scTags').innerHTML = [s.size + ' dźwięków', li ? (li.cat === 'custom' ? 'własna' : V.CAT_LABEL[li.cat]) : s.family].map(t => `<span class="tag">${esc(t)}</span>`).join('');
     $('#scIvs').innerHTML = V.INTERVAL_NAMES.map((n, i) => `<button data-iv="${i}" aria-pressed="${!!(SC.mask & (1 << i))}" class="${i === 0 ? 'root' : ''}">${esc(prettyAcc(n))}<br><span style="font-weight:400;opacity:.8">${esc(prettyAcc(V.noteName(SC.root + i, flat)))}</span></button>`).join('');
     const ch = SC.chordShown;
-    const win = SC.pos && SC.pos.size ? V.positionMap(SC.mask, SC.root, tuningArr(), SC.pos, S.frets) : null;
+    const win = SC.pos && SC.pos.size ? V.positionMap(SC.mask, SC.root, tuningArr(), SC.pos, S.frets) : NEG ? null : fullNeckCells(SC.mask, SC.root);
     const state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: SC.mask, scaleRoot: SC.root, show: NEG ? (ch ? 'negChord' : 'neg') : (ch ? 'both' : 'scale'), fretMin: 0, fretMax: 99, capo: P.capo || 0, cells: win, dimOut: true });
     $('#scPos').innerHTML = posPickerHtml(SC.mask, SC.root, SC.pos, 'data-pos', flat);
-    fbScale.update(state, null, flat);
-    SC.state = state; scaleLeds();
+    // jeden wspólny kolor (niebieski, przygaszony) albo kolory palców
+    const st2 = S.scColor === 'mono' ? state.map(r => r.map(c => c ? (c.cls === 'root' ? Object.assign({}, c, { finger: null, full: false }) : Object.assign({}, c, { cls: 'mono', finger: null, full: false, mono: true })) : null)) : state;
+    $$('[data-sccol]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.sccol === (S.scColor || 'fingers'))));
+    fbScale.update(st2, null, flat);
+    SC.state = st2; scaleLeds();
     // stopnie
     const iv = V.intervalsFromMask(SC.mask);
     $('#degPanel').hidden = iv.length !== 7;
@@ -6130,6 +6146,9 @@ akordy: chwyty     # albo: brzmiące
     fbChord.update(SC.exState, null, spellFlat(ch.root, ch.mask, ch.flat));
   }
   function bindScales() {
+    $$('[data-sccol]').forEach(b => b.onclick = () => { S.scColor = b.dataset.sccol; save(); renderScaleDetail(); });
+    if ($('#monoLevel')) { $('#monoLevel').value = S.monoLevel ?? 40; $('#monoLevelVal').textContent = (S.monoLevel ?? 40) + '%'; $('#monoLevel').oninput = e => { S.monoLevel = +e.target.value; $('#monoLevelVal').textContent = S.monoLevel + '%'; save(); renderScaleDetail(); }; }
+    if ($('#monoColor')) { $('#monoColor').value = S.colors.mono; $('#monoColor').oninput = e => { S.colors.mono = e.target.value; save(); fbScale.cfg = ''; renderScaleDetail(); }; }
     SC.pos = new Set();
     $('#scPos').onclick = e => posPickerClick(e, SC.pos, 'data-pos', ns => { SC.pos = ns || new Set(); renderScaleDetail(); }, renderScaleDetail);
     $('#chvPrev').onclick = () => { SC.vIdx--; renderExVoicing(); chordLeds(); };
@@ -6378,9 +6397,8 @@ akordy: chwyty     # albo: brzmiące
     $('#lefty').checked = S.lefty; $('#lefty').onchange = e => { S.lefty = e.target.checked; save(); refreshBoards(); };
     $('#highTop').checked = S.highTop; $('#highTop').onchange = e => { S.highTop = e.target.checked; save(); refreshBoards(); };
     // kolory
-    const names = NEG ? { out: 'Dźwięki spoza skali', chordNeg: 'Dźwięki akordu (tryb z akordem)', preview: 'Zapowiedź następnego akordu', root: 'Pryma (tryb Chwyt)', third: 'Tercja (tryb Chwyt)', fifth: 'Kwinta (tryb Chwyt)', seventh: 'Septyma (tryb Chwyt)', tension: 'Napięcia (tryb Chwyt)', bass: 'Bas (tryb Chwyt)' } : { root: 'Pryma (tonika akordu)', third: 'Tercja', fifth: 'Kwinta', seventh: 'Septyma / seksta', tension: 'Napięcia (9, 11, 13)', bass: 'Bas w akordzie z ukośnikiem', scale: 'Pozostałe dźwięki skali', preview: 'Zapowiedź następnego akordu', f1: 'Palec 1 (wskazujący)', f2: 'Palec 2 (środkowy)', f3: 'Palec 3 (serdeczny)', f4: 'Palec 4 (mały)', f0: 'Struna pusta' };
+    const names = NEG ? { out: 'Dźwięki spoza skali', chordNeg: 'Dźwięki akordu (tryb z akordem)', preview: 'Zapowiedź następnego akordu', root: 'Pryma (tryb Chwyt)', third: 'Tercja (tryb Chwyt)', fifth: 'Kwinta (tryb Chwyt)', seventh: 'Septyma (tryb Chwyt)', tension: 'Napięcia (tryb Chwyt)', bass: 'Bas (tryb Chwyt)' } : { root: 'Pryma (tonika akordu)', third: 'Tercja', fifth: 'Kwinta', seventh: 'Septyma / seksta', tension: 'Napięcia (9, 11, 13)', bass: 'Bas w akordzie z ukośnikiem', scale: 'Pozostałe dźwięki skali', preview: 'Zapowiedź następnego akordu', f1: 'Palec 1 (wskazujący)', f2: 'Palec 2 (środkowy)', f3: 'Palec 3 (serdeczny)', f4: 'Palec 4 (mały)', f0: 'Struna pusta', mono: 'Wspólny kolor (Skale)' };
     $('#colorEdit').innerHTML = Object.keys(names).map(k => `<label class="row" style="justify-content:space-between"><span class="small">${names[k]}</span><input type="color" data-color="${k}" value="${S.colors[k]}" style="width:54px;height:34px;border:1px solid var(--line);border-radius:6px;background:none;padding:2px"></label>`).join('')
-      + `<label class="f">Jasność dźwięków skali względem akordu <span class="mono" id="sdVal">${S.scaleDim}%</span><input type="range" id="scaleDim" min="5" max="100" value="${S.scaleDim}"></label>`;
     $('#colorEdit').oninput = e => {
       if (e.target.dataset.color) { S.colors[e.target.dataset.color] = e.target.value; }
       if (e.target.id === 'scaleDim') { S.scaleDim = +e.target.value; $('#sdVal').textContent = S.scaleDim + '%'; }
@@ -6730,7 +6748,7 @@ akordy: chwyty     # albo: brzmiące
     if (ST.view === 'uklad') state = layoutStateFor(ev);
     else if (ST.view === 'grip') state = V.voicingState(v, ch, tuningArr(), S.frets, capo, null, 0);
     else if (NEG) state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: 'negChord', capo, scaleMask: ev.chordOnly || !ev.scaleObj ? ch.mask : ev.scaleObj.mask, scaleRoot: ev.chordOnly || !ev.scaleObj ? ch.root : sRoot, fretMin: 0, fretMax: 99 });
-    else state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : 'both', capo, scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: 0, fretMax: 99, cells: ev.posSet ? (ev.scaleObj && !ev.chordOnly ? V.positionMap(ev.scaleObj.mask, sRoot, tuningArr(), ev.posSet, S.frets) : V.positionMap(ch.mask, ch.root, tuningArr(), ev.posSet, S.frets)) : null, dimOut: true });
+    else state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, show: ev.chordOnly ? 'chord' : 'both', capo, scaleMask: ev.scaleObj ? ev.scaleObj.mask : null, scaleRoot: sRoot, fretMin: 0, fretMax: 99, cells: evWindows(ev, ch, sRoot), dimOut: true });
     fbStudio.fb.cfg = '';
     const fl = spellFlat(ev.chord.root, ev.scaleObj ? ev.scaleObj.mask : ev.chord.mask, ev.chord.flat);
     fbStudio.fb.update(state, null, fl, shift);
@@ -8050,7 +8068,7 @@ akordy: chwyty     # albo: brzmiące
     const tun = tuningArr(); let st = null;
     if (ev && !ev.chord.nc) {
       const ch = V.transposeChord(ev.chord, stShift()), sRoot = ev.scaleRootPc == null ? null : (ev.scaleRootPc + stShift()) % 12;
-      const cells = ev.posSet ? (ev.scaleObj && !ev.chordOnly ? V.positionMap(ev.scaleObj.mask, sRoot, tun, ev.posSet, S.frets) : V.positionMap(ch.mask, ch.root, tun, ev.posSet, S.frets)) : null;
+      const cells = evWindows(ev, ch, sRoot);
       st = V.fretState({ tuning: tun, frets: S.frets, chord: ch, show: 'scale', capo: stCapo(), scaleMask: ev.scaleObj && !ev.chordOnly ? ev.scaleObj.mask : ch.mask, scaleRoot: ev.scaleObj && !ev.chordOnly ? sRoot : ch.root, fretMin: 0, fretMax: 99, cells, dimOut: true });
       if (!full) st = st.map(r => r.map(c => c ? Object.assign({}, c, { dim: true, finger: null }) : null));
     }
