@@ -413,7 +413,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.2.0</span></small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.3.0</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -778,6 +778,9 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
               <div class="seg" role="group"><button data-cpadd="end">dopisz na końcu części</button><button data-cpadd="after">wstaw po zaznaczonym</button><button data-cpadd="replace">zamień zaznaczony</button></div></div>
             <div class="row"><span class="small muted">Długość nowego akordu:</span>
               <div class="seg" role="group"><button data-cpdur="beat">1 miara</button><button data-cpdur="half">½ taktu</button><button data-cpdur="bar">1 takt</button><button data-cpdur="2bar">2 takty</button><button data-cpdur="4bar">4 takty</button></div></div>
+            <div class="row"><span class="small muted">Styl podpowiedzi:</span>
+              <div class="seg" role="group"><button data-cpstyle="auto">neutralnie</button><button data-cpstyle="prog">prog rock</button><button data-cpstyle="blues">blues / rock</button><button data-cpstyle="ballad">ballada</button><button data-cpstyle="modal">modalnie</button></div></div>
+            <label class="chk"><input type="checkbox" id="cpOwn" checked> <span>Kontynuuj w stylu tego utworu – przejścia, które już są w projekcie (np. nagrane z Cubase), dostają pierwszeństwo <span class="small muted" id="cpOwnInfo"></span></span></label>
             <div id="cpPal"></div>
             <div class="row"><input type="text" id="cpFree" class="grow" placeholder="Dowolny akord, np. F#m7b5, Cadd9/E, Bb7#11"><button class="btn" id="cpFreeAdd">Dodaj</button><button class="btn" data-cpsym="N.C." id="cpNcAdd" title="Pauza bez akordu (N.C.)">Pauza N.C.</button></div>
           </div>
@@ -794,6 +797,8 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
                 <label class="chk"><input type="checkbox" id="cpLoop" checked> pętla</label>
                 <label class="chk"><input type="checkbox" id="cpClick" checked> klik</label>
                 <label class="chk"><input type="checkbox" id="cpChords" checked> akordy i bas</label>
+                <label class="chk" title="Gdy wysyłasz MIDI do Cubase, możesz wyciszyć brzmienie z przeglądarki"><input type="checkbox" id="cpLocalSound" checked> dźwięk z przeglądarki</label>
+                <button class="btn" id="cpOutLink" title="Ustawienia kanału zwrotnego do Cubase (zakładka Urządzenie)">MIDI → Cubase…</button>
                 <span class="mono grow" id="cpTime"></span>
               </div>
               <p class="small muted" id="cpSum"></p>
@@ -1150,14 +1155,30 @@ akordy: chwyty     # albo: brzmiące
               <label class="f" style="width:170px">Tonacja (opcjonalnie) <input type="text" id="mbKey" placeholder="np. A moll"></label>
               <label class="chk"><input type="checkbox" id="mbHold"> trzymaj ostatni akord</label>
             </div>
+            <div class="row"><span class="small muted">Podczas grania Cubase gryf prowadzi:</span>
+              <div class="seg" role="group"><button data-mbdrive="song" aria-pressed="true">utwór POWER GRYF (skale, pozycje, solo)</button><button data-mbdrive="midi" aria-pressed="false">akordy z Cubase (ścieżka MIDI / Chord Track)</button></div></div>
             <div class="row" style="align-items:baseline"><span class="insp-title" id="mbChord">—</span><span class="small" id="mbScale"></span></div>
             <div class="fb-wrap" id="mbFb"></div>
+            <h4>Kompozytor ↔ Cubase</h4>
+            <div class="row">
+              <button class="btn" id="mbRecBtn">● Słuchaj Cubase (nagraj akordy)</button>
+              <span class="small muted grow" id="mbRecInfo">Puść w Cubase ścieżkę z akordami – zapiszę je do Kompozytora jako nową część, z długościami w taktach.</span>
+            </div>
+            <label class="chk"><input type="checkbox" id="mbOutOn"> <span><b>Wysyłaj akordy z Kompozytora do Cubase</b> – odsłuch i kliknięte akordy grają na Twoich instrumentach w Cubase (nagraj je na ścieżkę MIDI).</span></label>
+            <div class="row">
+              <label class="f grow">Port wyjściowy <select id="mbOutPort"><option value="">– najpierw „Połącz z Cubase” –</option></select></label>
+              <label class="f" style="width:110px">Kanał <select id="mbOutCh"></select></label>
+              <button class="btn" id="mbTest">Test: wyślij Am</button>
+            </div>
+            <p class="small muted" id="mbOutInfo"></p>
+            <p class="small muted">Osobny port na kanał zwrotny: w loopMIDI dodaj drugi port <span class="mono">POWER GRYF OUT</span>. W Cubase: ścieżka MIDI → wejście „POWER GRYF OUT”, wyjście → Twój instrument, włącz monitor (głośniczek) albo nagrywanie. Jeden port w obie strony też zadziała, ale Cubase usłyszy wtedy własne akordy.</p>
             <details>
               <summary><b>Jak to ustawić (jednorazowo, ok. 3 minuty)</b></summary>
               <ol class="small mb-howto">
                 <li><b>loopMIDI – wirtualny kabel MIDI.</b> Pobierz darmowy program loopMIDI ze strony tobias-erichsen.de (Software → loopMIDI) i zainstaluj. Uruchom go, w polu „New port-name” wpisz <span class="mono">POWER GRYF</span> i kliknij „+”. Program ma działać w tle (ikona przy zegarze Windows) – w jego ustawieniach możesz włączyć start razem z Windows.</li>
                 <li><b>Uruchom Cubase dopiero teraz</b> (Cubase widzi nowe porty MIDI przy starcie). W <i>Studio → Studio Setup → MIDI Port Setup</i> powinien być widoczny port „POWER GRYF”.</li>
-                <li><b>Synchronizacja:</b> w Cubase <i>Transport → Project Synchronization Setup…</i> → w sekcji <i>MIDI Clock Destinations</i> zaznacz „POWER GRYF”. Zaznacz też <i>MIDI Clock Follows Project Position</i> (przewijanie) i, jeśli jest, <i>Send MIDI Clock in Stop Mode</i> (tempo znane przed startem). Zamknij okno.</li>
+                <li><b>W Cubase: Studio → Studio Setup → MIDI Port Setup:</b> przy wierszu <i>In · POWER GRYF</i> odznacz „Visible” i „In 'All MIDI'”. Windows daje port MIDI jednemu programowi naraz – jeśli Cubase trzyma wejście POWER GRYF, Edge go nie zobaczy.</li>
+                <li><b>Synchronizacja:</b> w Cubase <i>Transport → Project Synchronization Setup…</i> → zakładka <i>Sources</i>: <b>odznacz „Activate External Sync”</b> (Cubase ma nadawać, nie czekać na sygnał). Zakładka <i>Destinations</i> → w sekcji <i>MIDI Clock Destinations</i> zaznacz „POWER GRYF”. Zaznacz też <i>MIDI Clock Follows Project Position</i> (przewijanie) i, jeśli jest, <i>Send MIDI Clock in Stop Mode</i> (tempo znane przed startem). Zamknij okno.</li>
                 <li><b>Ten sam utwór w obu programach:</b> w Pracowni „Eksport MIDI” → przeciągnij plik do Cubase (albo odwrotnie: plik MIDI z Cubase → Kompozytor → „Importuj MIDI”). W POWER GRYF wybierz ten utwór w Koncercie lub Treningu. Jeśli w Cubase utwór zaczyna się np. od 3. taktu, wpisz 3 w polu „Takt 1 utworu = takt w Cubase”.</li>
                 <li><b>Akordy na żywo (opcjonalnie):</b> utwórz w Cubase ścieżkę MIDI i ustaw jej wyjście (<i>Output Routing</i>) na „POWER GRYF”. Akordy z Chord Track możesz przeciągnąć na tę ścieżkę – Cubase zamieni je na nuty. Scaler: wstaw go na ścieżkę instrumentu, a ścieżce MIDI z wyjściem „POWER GRYF” ustaw wejście z wyjścia MIDI Scalera.</li>
                 <li><b>W POWER GRYF (Edge):</b> Urządzenie → „Połącz z Cubase” → zgódź się na „Urządzenia MIDI” → wybierz port POWER GRYF. Naciśnij Play w Cubase. Gdy diody spóźniają się albo wyprzedzają, popraw „Korekta czasu (ms)”.</li>
@@ -4592,7 +4613,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.2.0';
+  const VERSION = '3.3.0';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -5893,7 +5914,9 @@ akordy: chwyty     # albo: brzmiące
     // --- LED (z wyprzedzeniem) ---
     if (B.server && S.enc.ready && S.ledEnable && !(SP && SP.on)) {
       let leds = null, key = '';
+      const lv = typeof mbLiveState === 'function' ? mbLiveState() : null;
       if (!P.running && P.manual) { key = 'm' + P.manual.key + S.brightness; if (key !== lastLedKey) leds = stateToLeds(P.manual.state, null); }
+      else if (lv) { key = 'lv' + lv.sym + lv.label + S.brightness; if (key !== lastLedKey) leds = stateToLeds(lv.state, null); }
       else if (song) {
         const tl = t + (P.running ? S.leadMs / 1000 * P.rate() : 0);
         const d = displayFor(tl);
@@ -5909,8 +5932,15 @@ akordy: chwyty     # albo: brzmiące
     const b = song.bars[Math.max(0, bi)];
     if (d) {
       const sd = soloAt(P.solo, t);
-      const key = d.ei + '|' + d.previewOn + '|' + S.show + S.labels + S.fretMin + S.fretMax + fbPlay.cfg + (sd ? sd.key : '');
-      if (key !== lastKey) {
+      const lv = typeof mbLiveState === 'function' ? mbLiveState() : null;
+      const key = d.ei + '|' + d.previewOn + '|' + S.show + S.labels + S.fretMin + S.fretMax + fbPlay.cfg + (sd ? sd.key : '') + (lv ? '|lv' + lv.sym + lv.label : '');
+      if (key !== lastKey && lv) {
+        lastKey = key;
+        $('#nowChord').innerHTML = prettyChord(lv.sym); $('#capoInfo').hidden = true; $('#gripInfo').hidden = true;
+        $('#nowScale').innerHTML = esc(lv.label) + ' <span class="mono">· akord z Cubase</span>';
+        $('#nextChord').innerHTML = d.nx ? prettyChord(d.nx.chord.symbol) : '■';
+        fbPlay.update(lv.state, null, false, 0);
+      } else if (key !== lastKey) {
         lastKey = key;
         const ev = d.ev;
         $('#nowChord').innerHTML = prettyChord(ev.chord.symbol);
@@ -8868,7 +8898,15 @@ akordy: chwyty     # albo: brzmiące
   }
 
   /* ================= KOMPOZYTOR ================= */
-  const CP = { list: store.get('compProjects', []), id: store.get('compCur', null), sel: null, sec: 0, add: 'end', deg: 3, dur: 'bar', fb: null, play: null, imp: null };
+  const CP = { list: store.get('compProjects', []), id: store.get('compCur', null), sel: null, sec: 0, add: 'end', deg: 3, dur: 'bar', fb: null, play: null, imp: null, style: store.get('compStyle', 'auto'), own: store.get('compOwn', true) };
+  // profile stylu: wagi dla ruchu basu (interwał w półtonach) i grup palety
+  const STYLES = {
+    auto: { name: 'neutralnie', iv: {}, bor: 0, col: 0, sec: 0, why: '' },
+    prog: { name: 'prog rock', iv: { 3: 1.6, 4: 1.4, 8: 1.6, 9: 0.8, 6: 0.9, 1: 0.6, 11: 0.6, 2: 0.4, 10: 0.6, 5: -0.6, 7: -0.3 }, bor: 1.6, col: 0.9, sec: -0.6, why: 'mediant chromatyczny, wymiana modalna – kolor prog' },
+    blues: { name: 'blues / rock', iv: { 5: 1.2, 7: 1.0, 10: 0.8, 2: 0.6, 9: -0.4, 3: 0.4 }, bor: 0.9, col: -0.4, sec: 0.6, dom: 1.4, why: 'I–IV–V, dominanty, ♭VII' },
+    ballad: { name: 'ballada', iv: { 9: 1.0, 5: 0.8, 7: 0.4, 2: 0.6, 10: 0.3, 8: 0.4 }, bor: 0.5, col: 1.1, sec: 0.2, why: 'łagodne przejścia, sus i add9' },
+    modal: { name: 'modalnie / folk', iv: { 2: 1.2, 10: 1.2, 7: 0.5, 5: 0.3, 3: 0.4, 9: 0.4 }, bor: -0.5, col: 0.6, sec: -1.5, why: 'ruch sekundowy, bez dominant' }
+  };
   const cpSave = () => { store.set('compProjects', CP.list); store.set('compCur', CP.id); };
   function cpNewProject(title) {
     const p = { id: newId(), title: title || 'Nowy utwór', root: 0, mode: 'ionian', bpm: '90', meter: '4/4', pos: null, songId: null,
@@ -9001,7 +9039,15 @@ akordy: chwyty     # albo: brzmiące
     const FT = { T: { S: 1.4, D: 0.8, T: 0.3 }, S: { D: 1.6, T: 0.6, S: 0.2 }, D: { T: 2, S: -0.4, D: 0 } };
     if (pf && f && FT[pf]) { s += FT[pf][f] || 0; if (pf === 'D' && f === 'T' && !why.includes('dominant')) why = 'dominanta → tonika'; if (pf === 'S' && f === 'D') why = why || 'subdominanta → dominanta'; }
     if (it.bor) s -= 0.9; if (it.col) s -= 1.6;
-    if (it.rn && it.rn.startsWith('V7/') && iv !== 0) s += 0.2;
+    if (it.rn && it.rn.startsWith('V7/')) s -= 0.7; // dominanta wtrącona: dopiero gdy styl albo nagranie ją uzasadnia
+    if (!it.bor && !it.col && !(it.rn && it.rn.startsWith('V7/'))) s += 0.3; // przy równych szansach – akord tonacji
+    // profil stylu
+    const ST2 = STYLES[CP.style] || STYLES.auto;
+    if (ST2.iv[iv]) { s += ST2.iv[iv]; if (ST2.iv[iv] >= 1.2 && !why.includes('dominant')) why = ST2.why; }
+    if (it.bor) s += ST2.bor; if (it.col) s += ST2.col; if (it.rn && it.rn.startsWith('V7/')) s += ST2.sec;
+    if (ST2.dom && ch.tones.has(10) && ch.tones.has(4)) s += ST2.dom;
+    // „w stylu nagrania”: przejścia, które już są w tym projekcie
+    if (CP.own && p.__stats && p.__stats.n >= 3) { const minor = ch.tones.has(3) && !ch.tones.has(4); const k = iv + (minor ? 'm' : 'M'); const c = p.__stats.T.get(k) || 0; if (c) { s += Math.min(2.5, 1.2 * Math.log2(1 + c * 6 / p.__stats.n)); why = 'takie przejście jest już w Twoim utworze (' + c + '×)'; } }
     return { s, why };
   }
 
@@ -9069,6 +9115,9 @@ akordy: chwyty     # albo: brzmiące
   }
   function renderCpPalette(p) {
     const prev = cpPrevSym(p); const flat = cpFlat(p);
+    p.__stats = typeof cpTransitionStats === 'function' ? cpTransitionStats(p) : null;
+    $$('[data-cpstyle]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.cpstyle === CP.style)));
+    if ($('#cpOwn')) { $('#cpOwn').checked = !!CP.own; $('#cpOwnInfo').textContent = p.__stats && p.__stats.n >= 3 ? '(' + p.__stats.n + ' przejść w projekcie)' : '(za mało akordów – dopisz albo nagraj z Cubase)'; }
     $('#cpPrevName').innerHTML = prev ? prettyChord(prev) : 'początku';
     const groups = cpPaletteGroups(p);
     const all = groups.flatMap(g => g.items);
@@ -9138,6 +9187,7 @@ akordy: chwyty     # albo: brzmiące
   }
   function cpAudition(sym) {
     const ch = cpParse(sym); if (!ch) return; A.ensure(); const t = A.ctx.currentTime + 0.03;
+    if (typeof mbOutReady === 'function' && mbOutReady()) { mbSendChord(t, 1.1, ch); if (!$('#cpLocalSound') || $('#cpLocalSound').checked) { A.chord(t, 1.1, ch); A.bass(t, 1.1, ch); } return; }
     A.chord(t, 1.1, ch); A.bass(t, 1.1, ch);
   }
   function cpAddChord(p, sym) {
@@ -9157,7 +9207,7 @@ akordy: chwyty     # albo: brzmiące
 
   /* ---------- odsłuch ---------- */
   function cpStop() {
-    if (!CP.play) return; CP.play.on = false; CP.play = null;
+    if (!CP.play) return; CP.play.on = false; CP.play = null; if (typeof mbAllOff === 'function') mbAllOff();
     $('#cpPlay').textContent = '▶ Odsłuch'; $('#cpPlay').classList.add('primary'); $('#cpTime').textContent = '';
     if (!$('#composer').hidden) renderComposer();
   }
@@ -9178,13 +9228,14 @@ akordy: chwyty     # albo: brzmiące
     let n1 = now + 0.15; const n0 = Math.max(pl.schedN, now - 0.05);
     if (n1 > song.lenSec && !$('#cpLoop').checked) n1 = Math.min(n1, song.lenSec);
     if (n1 > n0) {
-      const click = $('#cpClick').checked, chords = $('#cpChords').checked;
+      const click = $('#cpClick').checked, chords = $('#cpChords').checked && (!(typeof mbOutReady === 'function' && mbOutReady()) || !$('#cpLocalSound') || $('#cpLocalSound').checked);
       // odliczanie: zawsze klik
       for (const pu of V.pulsesBetween(song, n0, Math.min(n1, song.lenSec), { countIn: pl.ci ? 1 : 0 })) {
         if (pu.countIn || click) A.click(pl.t0 + pu.t, pu.level);
         if (chords && !pu.countIn && pu.level < 2) { const ev = song.events[V.eventAtSec(song, pu.t + 1e-6)]; const b = song.bars[pu.bar]; if (ev && b) A.bass(pl.t0 + pu.t, b.lenSec / b.groups.length, ev.chord); }
       }
-      if (chords) song.events.forEach(e => { if (!e.tied && e.startSec >= n0 && e.startSec < n1 && e.startSec < song.lenSec) { let d = e.durSec; const i = song.events.indexOf(e); for (let j = i + 1; j < song.events.length && song.events[j].tied; j++) d += song.events[j].durSec; A.chord(pl.t0 + e.startSec, d * 0.98, e.chord); } });
+      const outOn = typeof mbOutReady === 'function' && mbOutReady(); const local = !outOn || !$('#cpLocalSound') || $('#cpLocalSound').checked;
+      if (chords || outOn) song.events.forEach(e => { if (!e.tied && e.startSec >= n0 && e.startSec < n1 && e.startSec < song.lenSec) { let d = e.durSec; const i = song.events.indexOf(e); for (let j = i + 1; j < song.events.length && song.events[j].tied; j++) d += song.events[j].durSec; if (chords && local) A.chord(pl.t0 + e.startSec, d * 0.98, e.chord); if (outOn) mbSendChord(pl.t0 + e.startSec, d * 0.98, e.chord); } });
       pl.schedN = n1;
       if (n1 >= song.lenSec - 1e-6 && $('#cpLoop').checked) { pl.t0 += song.lenSec; pl.schedN = 0; pl.ci = false; }
     }
@@ -9345,6 +9396,9 @@ akordy: chwyty     # albo: brzmiące
     head('#cpBpm', (p, v) => { try { if (!(V.parseTempo(v) > 0)) throw 0; p.bpm = v; } catch (e) { toast('Tempo: np. 90 albo 60 q.'); return false; } });
     head('#cpMeter', (p, v) => { try { V.parseMeter(v); p.meter = v; } catch (e) { toast(e.message); return false; } });
     $$('[data-cpdeg]').forEach(b => b.onclick = () => { CP.deg = +b.dataset.cpdeg; renderComposer(); });
+    $$('[data-cpstyle]').forEach(b => b.onclick = () => { CP.style = b.dataset.cpstyle; store.set('compStyle', CP.style); renderComposer(); });
+    if ($('#cpOwn')) $('#cpOwn').onchange = e => { CP.own = e.target.checked; store.set('compOwn', CP.own); renderComposer(); };
+    if ($('#cpOutLink')) $('#cpOutLink').onclick = () => { showView('device'); setTimeout(() => $('#mbPanel').scrollIntoView({ behavior: 'smooth' }), 200); };
     $$('[data-cpadd]').forEach(b => b.onclick = () => { CP.add = b.dataset.cpadd; renderComposer(); });
     $$('[data-cpdur]').forEach(b => b.onclick = () => { CP.dur = b.dataset.cpdur; renderComposer(); });
     $('#cpPal').onclick = e => { const b = e.target.closest('[data-cpsym]'); if (!b) return; const p = cpProj(); if (p) cpAddChord(p, b.dataset.cpsym); };
@@ -9511,8 +9565,8 @@ akordy: chwyty     # albo: brzmiące
   }
 
   /* ================= MOST MIDI: Cubase / Scaler → POWER GRYF (Web MIDI – Edge/Chrome na komputerze) ================= */
-  const MB = Object.assign({ port: '', sync: true, chords: true, ch: 0, bar: 1, adj: 0, hold: true, key: '' }, store.get('midiBridge', {}));
-  const MBR = { acc: null, inp: null, playing: false, baseQ: 0, clk: 0, times: [], spq: 0, notes: new Map(), sym: '', timer: null, fb: null, n: 0, lastMsg: 0, lastClock: 0 };
+  const MB = Object.assign({ port: '', sync: true, chords: true, ch: 0, bar: 1, adj: 0, hold: true, key: '', outPort: '', outOn: false, outCh: 1, drive: 'song' }, store.get('midiBridge', {}));
+  const MBR = { acc: null, inp: null, out: null, playing: false, baseQ: 0, clk: 0, times: [], spq: 0, notes: new Map(), sym: '', timer: null, fb: null, n: 0, lastMsg: 0, lastClock: 0, liveEv: null, rec: null };
   const mbSave = () => store.set('midiBridge', MB);
   const mbHas = () => !!navigator.requestMIDIAccess;
   function mbStatus(html, cls) { const el = $('#mbStatus'); if (el) { el.innerHTML = html; el.className = 'small' + (cls ? ' ' + cls : ''); } mbPill(); }
@@ -9537,6 +9591,16 @@ akordy: chwyty     # albo: brzmiące
     if (!ins.length) { mbClose(); mbStatus('Nie widzę żadnego portu MIDI. Uruchom loopMIDI i utwórz port „POWER GRYF” (instrukcja niżej), potem kliknij „Połącz z Cubase” jeszcze raz.', 'warn'); return; }
     let pick = ins.find(i => MBR.inp && i.id === MBR.inp.id) || ins.find(i => i.name === MB.port) || ins.find(i => /power\s*gryf/i.test(i.name)) || ins.find(i => /loop/i.test(i.name)) || ins[0];
     sel.value = pick.id; mbOpen(pick);
+    mbOutPorts();
+  }
+  function mbOutPorts() {
+    const outs = MBR.acc ? [...MBR.acc.outputs.values()] : [];
+    const sel = $('#mbOutPort'); if (!sel) return;
+    sel.innerHTML = '<option value="">– nie wysyłaj –</option>' + outs.map(o => `<option value="${esc(o.id)}">${esc(o.name)}</option>`).join('');
+    let pick = outs.find(o => o.name === MB.outPort) || outs.find(o => /gryf.*out|out.*gryf/i.test(o.name));
+    if (!pick && MB.outOn) pick = outs.find(o => /power\s*gryf/i.test(o.name) && !(MBR.inp && o.name === MBR.inp.name)) || null;
+    MBR.out = pick || null; sel.value = pick ? pick.id : '';
+    $('#mbOutInfo').textContent = pick ? 'Akordy z Kompozytora idą do Cubase przez „' + pick.name + '” (kanał ' + (MB.outCh || 1) + ').' : outs.length ? 'Wybierz port wyjściowy – najlepiej osobny port loopMIDI „POWER GRYF OUT”.' : '';
   }
   function mbClose() { if (MBR.inp) { MBR.inp.onmidimessage = null; MBR.inp = null; } mbPill(); }
   function mbOpen(inp) {
@@ -9560,7 +9624,7 @@ akordy: chwyty     # albo: brzmiące
     if (ty === 0x90 || ty === 0x80) {
       if (MB.ch && chn !== MB.ch - 1) return;
       if (ty === 0x90 && d[2] > 0) MBR.notes.set(d[1], d[2]); else MBR.notes.delete(d[1]);
-      if (MB.chords) { clearTimeout(MBR.timer); MBR.timer = setTimeout(mbChordNow, 40); }
+      if (MB.chords || MBR.rec || MB.drive === 'midi') { clearTimeout(MBR.timer); MBR.timer = setTimeout(mbChordNow, 40); }
       return;
     }
     if (ty === 0xB0 && (d[1] === 123 || d[1] === 120)) { MBR.notes.clear(); }
@@ -9621,10 +9685,10 @@ akordy: chwyty     # albo: brzmiące
   }
   // akord grany w Cubase/Scalerze → skala na gryfie
   function mbChordNow() {
-    if (P.running) return; // gdy utwór gra (także z Cubase) – diodami rządzi utwór
     const ms = [...MBR.notes.keys()].sort((a, b) => a - b);
+    const live = MB.drive === 'midi' && P.running; // akordy z Cubase prowadzą gryf także podczas grania
     if (ms.length < 2) {
-      if (!ms.length && !MB.hold && MBR.sym) { MBR.sym = ''; P.manual = { key: 'mb-off', state: null }; lastLedKey = ''; mbChordUi(null, null, null); }
+      if (!ms.length && !MB.hold && MBR.sym) { MBR.sym = ''; if (!P.running) { P.manual = { key: 'mb-off', state: null }; lastLedKey = ''; } if (live) { MBR.liveEv = null; lastKey = ''; lastLedKey = ''; } mbChordUi(null, null, null); }
       return;
     }
     const w = Array(12).fill(0); ms.forEach(m => w[m % 12] += 1);
@@ -9633,6 +9697,8 @@ akordy: chwyty     # albo: brzmiące
     const sym = chordFromPcs(w, ms[0] % 12, flat, ms[0]); if (!sym || sym === MBR.sym) return;
     let ch; try { ch = V.parseChord(sym); } catch (e) { return; }
     MBR.sym = sym;
+    if (MBR.rec) mbRecChord(sym);
+    if (P.running && !live) return; // utwór POWER GRYF gra – diodami rządzi utwór
     // ten sam akord w wybranym utworze → jego skala, pozycje i układ
     let state = null, label = '';
     if (P.song) {
@@ -9645,8 +9711,81 @@ akordy: chwyty     # albo: brzmiące
       state = V.fretState({ tuning: tuningArr(), frets: S.frets, chord: ch, scaleMask: mask, scaleRoot: ch.root, show: S.show === 'scale' ? 'scale' : 'both', capo: P.capo || 0, fretMin: 0, fretMax: 99, cells: fullNeckCells(mask, ch.root), dimOut: true });
       label = sc ? prettyAcc(V.noteName(ch.root, spellFlat(ch.root, sc.mask, flat)) + ' ' + sc.pl) + ' · automatycznie' : '';
     }
-    P.manual = { key: 'mb' + sym + label, state }; lastLedKey = '';
+    if (live) { MBR.liveEv = { sym, state, label }; lastKey = ''; lastLedKey = ''; }
+    else { P.manual = { key: 'mb' + sym + label, state }; lastLedKey = ''; }
     mbChordUi(sym, label, state, flat);
+  }
+  // podczas grania z Cubase w trybie „akordy z Cubase prowadzą gryf”: stan gryfu z ostatniego akordu MIDI
+  function mbLiveState() { return MB.drive === 'midi' && P.ext && MBR.liveEv ? MBR.liveEv : null; }
+
+  /* ---------- nagrywanie akordów z Cubase do Kompozytora ---------- */
+  function mbRecStart() {
+    const p = typeof cpEnsure === 'function' ? cpEnsure() : null; if (!p) { toast('Otwórz Kompozytor'); return; }
+    MBR.rec = { chords: [], lastQ: null, startQ: null, proj: p.id };
+    $('#mbRecBtn').textContent = '■ Zakończ nasłuch'; $('#mbRecBtn').classList.add('danger');
+    $('#mbRecInfo').textContent = 'Słucham… Puść Cubase (Play) z akordami na ścieżce wysłanej do POWER GRYF. Każda zmiana akordu zapisze się z pozycją taktu.';
+    toast('Nasłuch Cubase włączony');
+  }
+  function mbRecQ() { // bieżąca pozycja w ćwierćnutach wg zegara Cubase (albo wg czasu, gdy brak zegara)
+    if (MBR.playing || MBR.clk) return MBR.baseQ + MBR.clk / 24;
+    return null;
+  }
+  function mbRecChord(sym) {
+    const R = MBR.rec; if (!R) return;
+    let q = mbRecQ();
+    if (q == null) { // brak zegara – mierz czas i przeliczaj po tempie projektu
+      const p = cpProj(); const qpm = p ? cpQpm(p) : 90; const t = A.ctx ? A.ctx.currentTime : performance.now() / 1000;
+      if (R.t0 == null) R.t0 = t; q = (t - R.t0) * qpm / 60;
+    }
+    if (R.startQ == null) R.startQ = q;
+    const last = R.chords[R.chords.length - 1];
+    if (last) { if (last.sym === sym) return; last.q = Math.max(0.25, q - last.at); }
+    R.chords.push({ sym, at: q, q: 0 });
+    $('#mbRecInfo').textContent = 'Nagrane akordy: ' + R.chords.map(c => prettyAcc(c.sym)).join(' · ');
+  }
+  function mbRecStop() {
+    const R = MBR.rec; if (!R) return; MBR.rec = null;
+    $('#mbRecBtn').textContent = '● Słuchaj Cubase (nagraj akordy)'; $('#mbRecBtn').classList.remove('danger');
+    const p = CP.list.find(x => x.id === R.proj) || cpProj(); if (!p || !R.chords.length) { $('#mbRecInfo').textContent = 'Nic nie nagrano.'; return; }
+    const bq = cpBarQ(p), pulse = cpPulseQ(p);
+    const last = R.chords[R.chords.length - 1]; const endQ = mbRecQ(); if (!(last.q > 0)) last.q = endQ != null && endQ > last.at ? endQ - last.at : bq;
+    // kwantyzacja do miary; początek do pełnego taktu
+    const snap = v => Math.max(pulse, Math.round(v / pulse) * pulse);
+    const chords = R.chords.map(c => ({ sym: c.sym, q: snap(c.q), sr: null, sm: null, pos: null }));
+    const startBar = Math.floor(R.startQ / bq);
+    const sec = { id: cpUid(), name: 'Z Cubase ' + new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' }), chords };
+    p.sections.push(sec); CP.sec = p.sections.length - 1; CP.sel = null;
+    // tonacja z nagranych akordów, jeśli projekt jest świeży
+    if (!p.sections.some(s => s !== sec && s.chords.length)) { const w = Array(12).fill(0); chords.forEach(c => { const ch = cpParse(c.sym); if (ch) [...ch.tones.keys()].forEach(o => w[(ch.root + o) % 12] += c.q); }); const k = detectKeyPcs(w); p.root = k.r; p.mode = k.minor ? 'aeolian' : 'ionian'; if (MBR.spq) p.bpm = String(Math.round(60 / MBR.spq)); }
+    cpSave();
+    $('#mbRecInfo').textContent = 'Dodano część „' + sec.name + '” (' + chords.length + ' akordów, od taktu ' + (startBar + 1) + ' w Cubase). Otwórz Kompozytor – paleta podpowie dalsze akordy.';
+    toast('Akordy z Cubase są w Kompozytorze');
+    if (!$('#composer').hidden) renderComposer();
+  }
+
+  /* ---------- MIDI OUT: Kompozytor gra do Cubase ---------- */
+  function mbOutReady() { return !!(MB.outOn && MBR.out); }
+  // czas: Web MIDI używa performance.now(); audio – AudioContext.currentTime
+  function mbOutTime(tc) { const c = A.ctx; if (!c) return performance.now(); const base = c.getOutputTimestamp ? c.getOutputTimestamp() : null; return base && base.performanceTime != null ? base.performanceTime + (tc - base.contextTime) * 1000 : performance.now() + (tc - c.currentTime) * 1000; }
+  function mbSendChord(tc, durSec, ch, opts) {
+    if (!mbOutReady() || !ch || ch.nc) return;
+    const o = MBR.out, chn = ((MB.outCh || 1) - 1) & 15; const t0 = mbOutTime(tc), t1 = t0 + Math.max(60, durSec * 1000 - 15);
+    const offs = [...ch.tones.keys()]; let prev = 52; const notes = [];
+    offs.map(x => (ch.root + x) % 12).forEach(pc => { let m = 48 + pc; while (m < prev + 1) m += 12; if (m > 76) m -= 12; notes.push(m); });
+    if (!(opts && opts.noBass)) { const bpc = ch.bass != null ? ch.bass : ch.root; notes.push(36 + bpc - (bpc > 7 ? 12 : 0)); }
+    try { for (const m of notes) { o.send([0x90 | chn, m, 92], t0); o.send([0x80 | chn, m, 0], t1); } } catch (e) { }
+  }
+  function mbAllOff() { if (!MBR.out) return; const chn = ((MB.outCh || 1) - 1) & 15; try { MBR.out.send([0xB0 | chn, 123, 0]); } catch (e) { } }
+
+  /* ---------- „w stylu nagrania”: statystyka przejść z akordów projektu ---------- */
+  function cpTransitionStats(p) {
+    const T = new Map(); let n = 0;
+    const seqs = p.sections.filter(s => !s.of).map(s => s.chords.map(c => cpParse(c.sym)).filter(Boolean));
+    for (const seq of seqs) for (let i = 1; i < seq.length; i++) {
+      const a = seq[i - 1], b = seq[i]; const iv = ((b.root - a.root) % 12 + 12) % 12; const minor = b.tones.has(3) && !b.tones.has(4);
+      const k = iv + (minor ? 'm' : 'M'); T.set(k, (T.get(k) || 0) + 1); n++;
+    }
+    return { T, n };
   }
   function mbChordUi(sym, label, state, flat) {
     const c = $('#mbChord'); if (!c) return;
@@ -9672,6 +9811,13 @@ akordy: chwyty     # albo: brzmiące
     $('#mbKey').onchange = e => { const v = e.target.value.trim(); if (v && !V.parseKey(v)) { toast('Nie rozpoznaję tonacji „' + v + '” (np. A moll, E dur, D dorian)'); e.target.value = MB.key || ''; return; } MB.key = v; mbSave(); MBR.sym = ''; mbChordNow(); };
     // brak zegara przez 1 s podczas grania = Cubase zatrzymany bez komunikatu Stop
     setInterval(() => { if (MBR.playing && P.ext && performance.now() - MBR.lastClock > 1000) { MBR.playing = false; mbExtStop(); } }, 300);
+    $$('[data-mbdrive]').forEach(b => { b.setAttribute('aria-pressed', String(b.dataset.mbdrive === MB.drive)); b.onclick = () => { MB.drive = b.dataset.mbdrive; mbSave(); $$('[data-mbdrive]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); MBR.liveEv = null; lastKey = ''; lastLedKey = ''; }; });
+    $('#mbOutOn').checked = !!MB.outOn; $('#mbOutCh').innerHTML = Array.from({ length: 16 }, (_, i) => `<option value="${i + 1}">${i + 1}</option>`).join(''); $('#mbOutCh').value = String(MB.outCh || 1);
+    $('#mbOutOn').onchange = e => { MB.outOn = e.target.checked; mbSave(); mbOutPorts(); if (!MB.outOn) mbAllOff(); };
+    $('#mbOutPort').onchange = e => { const o = MBR.acc && MBR.acc.outputs.get(e.target.value); MBR.out = o || null; MB.outPort = o ? o.name : ''; mbSave(); mbOutPorts(); };
+    $('#mbOutCh').onchange = e => { mbAllOff(); MB.outCh = +e.target.value; mbSave(); mbOutPorts(); };
+    $('#mbRecBtn').onclick = () => MBR.rec ? mbRecStop() : mbRecStart();
+    $('#mbTest').onclick = () => { if (!mbOutReady()) { toast('Włącz wysyłanie i wybierz port wyjściowy'); return; } A.ensure(); const ch = V.parseChord('Am'); mbSendChord(A.ctx.currentTime + 0.05, 1.2, ch); toast('Wysłano Am do Cubase – ścieżka z wejściem z tego portu powinna zaświecić'); };
     window.__pgMB = { MB, MBR, P, mbMsg };
   }
 
