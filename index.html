@@ -347,17 +347,24 @@ main.wide { max-width: 1680px; }
 .solane .bl{position:absolute;top:0;bottom:0;width:1px;background:rgba(255,255,255,.28)}
 .solane .nt b{font-weight:800}
 .solane .nt span{font-weight:400;opacity:.75}
-.se-touch{display:none;flex-wrap:wrap;gap:4px}
-@media (hover: none) { .se-touch { display: flex; } }
 .se-keys .kgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:4px 16px;margin-top:8px}
 kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 4px;background:#1b2130}
 .se-over .dragtip{position:absolute;padding:3px 8px;border-radius:6px;background:#4fd1ff;color:#08121a;font:700 12px var(--body);white-space:nowrap;box-shadow:0 2px 8px #0008}
+.se-over .ghost{position:absolute;padding:2px 7px;border-radius:6px;border:1px dashed #4fd1ff;background:#0b1622e6;color:#bfefff;font:600 11px var(--body);white-space:nowrap;pointer-events:none}
+.se-pal{position:sticky;top:calc(env(safe-area-inset-top,0px) + 56px);z-index:6;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 8px;margin-top:8px;display:flex;flex-direction:column;gap:6px;box-shadow:0 6px 16px #0006}
+.se-pal .row{gap:6px;flex-wrap:wrap;align-items:center}
+.se-pal .btn{padding:4px 9px;min-height:32px}
+.se-pal .seg button{padding:4px 9px;min-height:32px;font-size:15px}
+#soTech button[disabled]{opacity:.45}
+.notes-pick button{min-width:42px;display:flex;flex-direction:column;align-items:center;line-height:1.1;padding:4px 6px}
+.notes-pick button.ct b{text-decoration:underline;text-decoration-color:var(--accent);text-underline-offset:3px}
+.notes-pick button[disabled]{opacity:1}
 
 </style>
 </head><body>
 <div class="app">
   <header class="top">
-    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.3</span></small></div>
+    <div class="brand">POWER GRYF<small>skale i solówki na gryfie w czasie gry · wersja <span id="appVer">3.0.4</span></small></div>
     <div class="pills">
       <span class="pill" id="pillLed"><i></i>LED</span>
       <span class="pill" id="pillMic"><i></i>Mikrofon</span>
@@ -758,28 +765,7 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
               <h3 class="grow">Partia solo</h3>
               <span class="small muted" id="soCount"></span>
             </div>
-            <p class="small muted">Pięciolinia, tabulatura, linia POWER GRYF i gryf pokazują to samo solo – zmiana w jednym miejscu od razu pojawia się we wszystkich. Kliknij miejsce, żeby ustawić kursor; wpisuj progi cyframi albo klikaj gryf. Skróty – na dole panelu.</p>
-            <div class="row">
-              <button class="btn" id="soPrevBar">◀</button>
-              <label class="f" style="width:96px">Takt <input type="number" id="soBar" min="1" value="1"></label>
-              <button class="btn" id="soNextBar">▶</button>
-              <span class="small mono grow" id="soChord"></span>
-            </div>
-            <div class="row">
-              <span class="small muted">Wartość:</span>
-              <div class="seg" role="group" aria-label="Wartość rytmiczna" id="soDur">
-                <button data-sd="4" title="cała nuta">1</button><button data-sd="2" title="półnuta">1/2</button><button data-sd="1" title="ćwierćnuta">1/4</button><button data-sd="0.5" aria-pressed="true" title="ósemka">1/8</button><button data-sd="0.25" title="szesnastka">1/16</button>
-              </div>
-              <label class="chk"><input type="checkbox" id="soDot"> z kropką</label>
-              <label class="chk"><input type="checkbox" id="soTrip"> triola</label>
-            </div>
-            <div class="row">
-              <span class="small muted">Palec:</span>
-              <div class="seg fingers" role="group" aria-label="Palec" id="soFinger">
-                <button data-sf="auto" aria-pressed="true">auto</button><button data-sf="1">1</button><button data-sf="2">2</button><button data-sf="3">3</button><button data-sf="4">4</button><button data-sf="0">pusta</button>
-              </div>
-              <label class="chk"><input type="checkbox" id="soStack"> dwudźwięk (bez przesuwania kursora)</label>
-            </div>
+            <p class="small muted">Pięciolinia, tabulatura, linia POWER GRYF i gryf pokazują to samo solo – zmiana w jednym miejscu od razu pojawia się we wszystkich. Pisanie: kliknij na pięciolinii (wysokość dźwięku) albo na strunie w tabulaturze – nuta pojawi się w tym miejscu; wartość i technikę wybierasz na pasku nad nutami, próg poprawisz cyframi. Skróty – na dole panelu.</p>
             <div class="row">
               <button class="btn" id="soImpBtn" title="Guitar Pro, MusicXML, MIDI, PDF, tabulatura tekstowa albo nagranie gitary (mp3, wav, m4a…)">Importuj: Guitar Pro, MIDI, PDF, nagranie gitary…</button>
               <button class="btn" id="soFromBacking" title="Rozpoznaje dźwięki gitary z podkładu tego utworu (sieć neuronowa Basic Pitch)">Rozpoznaj solo z podkładu</button>
@@ -828,6 +814,38 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
               </div>
               <p class="small muted">Gra od taktu wybranego wyżej. Pauza zatrzymuje podkład i solo w miejscu, w którym jesteś – kursor staje na granym dźwięku, możesz go od razu poprawić i grać dalej. Bez podkładu solo gra z klikiem. Brzmienie: sample gitar z soundfontu Musyng Kite (CC BY-SA 3.0).</p>
             </div>
+            <div class="se-pal" id="sePal">
+              <div class="row">
+                <button class="btn" id="soPrevBar" title="Poprzedni takt (PgUp)">◀</button>
+                <label class="f" style="width:78px">Takt <input type="number" id="soBar" min="1" value="1"></label>
+                <button class="btn" id="soNextBar" title="Następny takt (PgDn)">▶</button>
+                <span class="small mono" id="soChord"></span>
+                <span class="grow"></span>
+                <button class="btn" data-se="undo" title="Cofnij (Ctrl+Z)">↶</button><button class="btn" data-se="redo" title="Ponów (Ctrl+Y)">↷</button>
+                <button class="btn" data-se="copy" title="Kopiuj (Ctrl+C)">⧉</button><button class="btn" data-se="cut" title="Wytnij (Ctrl+X)">✂</button><button class="btn" data-se="paste" title="Wklej w miejscu kursora (Ctrl+V)">📋</button><button class="btn danger" data-se="del" title="Usuń zaznaczone (Delete)">✕</button>
+              </div>
+              <div class="row">
+                <span class="small muted">Wartość</span>
+                <div class="seg" role="group" aria-label="Wartość rytmiczna" id="soDur">
+                  <button data-sd="4" title="cała nuta (klawisze + −)">1</button><button data-sd="2" title="półnuta">½</button><button data-sd="1" title="ćwierćnuta">¼</button><button data-sd="0.5" aria-pressed="true" title="ósemka">⅛</button><button data-sd="0.25" title="szesnastka">1/16</button><button data-sd="0.125" title="trzydziestodwójka">1/32</button>
+                </div>
+                <label class="chk" title="Kropka (klawisz .)"><input type="checkbox" id="soDot"> kropka</label>
+                <label class="chk" title="Triola (klawisz T)"><input type="checkbox" id="soTrip"> triola</label>
+                <span class="small muted">Technika</span>
+                <div class="seg" role="group" aria-label="Technika" id="soTech">
+                  <button data-tech="b1" title="Podciągnięcie o pół tonu (B, potem B zmienia: pełne → ½ → 1½ → brak)">b½</button><button data-tech="b2" title="Podciągnięcie o cały ton – pełne (B)">b</button><button data-tech="b3" title="Podciągnięcie o półtora tonu">b1½</button><button data-tech="br" title="Podciągnięcie i powrót (R)">b↺</button><button data-tech="pb" title="Prebend – podciągnięty przed uderzeniem i opuszczony (P)">pb</button><button data-tech="h" title="Hammer-on / pull-off od poprzedniego dźwięku na tej strunie (H)">h/p</button><button data-tech="s" title="Slajd od poprzedniego dźwięku (S)">/</button><button data-tech="v" title="Vibrato (V)">~</button>
+                </div>
+                <span class="small muted">Palec</span>
+                <div class="seg fingers" role="group" aria-label="Palec" id="soFinger">
+                  <button data-sf="auto" aria-pressed="true">auto</button><button data-sf="1" title="Shift+1">1</button><button data-sf="2" title="Shift+2">2</button><button data-sf="3" title="Shift+3">3</button><button data-sf="4" title="Shift+4">4</button><button data-sf="0" title="Shift+0">0</button>
+                </div>
+              </div>
+              <div class="row">
+                <label class="chk" title="Kliknięcie w puste miejsce pięciolinii, tabulatury albo linii POWER GRYF dodaje dźwięk"><input type="checkbox" id="seClickAdd" checked> klik dodaje nutę</label>
+                <label class="chk" title="Kolejny dźwięk w tym samym miejscu (dwudźwięk, akord)"><input type="checkbox" id="soStack"> dwudźwięk (kursor stoi)</label>
+                <span class="small muted grow" id="sePalInfo"></span>
+              </div>
+            </div>
             <div class="se-tools row">
               <span class="small muted">Widok:</span>
               <label class="chk"><input type="checkbox" id="seShowScore"> pięciolinia</label>
@@ -848,13 +866,6 @@ kbd{font:600 11px var(--mono);border:1px solid var(--line);border-bottom-width:2
             </div>
             <p class="small" id="seMsg" style="color:var(--bad)"></p>
             <div class="fb-wrap" id="fbSolo"></div>
-            <div class="row se-touch" id="seTouch">
-              <button class="btn" data-se="undo" title="Cofnij (Ctrl+Z)">↶</button><button class="btn" data-se="redo" title="Ponów (Ctrl+Y)">↷</button>
-              <button class="btn" data-se="left" title="W lewo (←)">◀</button><button class="btn" data-se="right" title="W prawo (→)">▶</button>
-              <button class="btn" data-se="up" title="Pół tonu wyżej (↑)">▲</button><button class="btn" data-se="down" title="Pół tonu niżej (↓)">▼</button>
-              <button class="btn" data-se="bend" title="Podciągnięcie (B)">b</button><button class="btn" data-se="hammer" title="Hammer-on / pull-off (H)">h/p</button><button class="btn" data-se="slide" title="Slajd (S)">/</button><button class="btn" data-se="vib" title="Vibrato (V)">~</button>
-              <button class="btn" data-se="copy" title="Kopiuj (Ctrl+C)">Kopiuj</button><button class="btn" data-se="cut" title="Wytnij (Ctrl+X)">Wytnij</button><button class="btn" data-se="paste" title="Wklej (Ctrl+V)">Wklej</button><button class="btn danger" data-se="del" title="Usuń (Delete)">Usuń</button>
-            </div>
             <details class="help se-keys">
               <summary>Skróty klawiatury i mysz</summary>
               <div class="kgrid small">
@@ -1381,6 +1392,32 @@ akordy: chwyty     # albo: brzmiące
     return null;
   }
   function formula(mask) { return intervalsFromMask(mask).map(i => INTERVAL_NAMES[i]).join(' '); }
+  // skala z dopisanymi / usuniętymi dźwiękami: „minor-pentatonic+b5+9-4” (stopnie względem prymy skali)
+  const DEG_SEMI = { 1: 0, 2: 2, 3: 4, 4: 5, 5: 7, 6: 9, 7: 11, 9: 2, 11: 5, 13: 9 };
+  function degSemi(d) { const m = /^([b#]?)(\d{1,2})$/.exec(d); if (!m || DEG_SEMI[+m[2]] == null) return null; return (((DEG_SEMI[+m[2]] + (m[1] === 'b' ? -1 : m[1] === '#' ? 1 : 0)) % 12) + 12) % 12; }
+  const MOD_RE = /^(?:[+-][b#]?\d{1,2})+$/;
+  function findScaleMod(name) {
+    const raw = String(name).trim();
+    for (let i = raw.length - 1; i > 0; i--) {
+      if (raw[i] !== '+' && raw[i] !== '-') continue;
+      const suf = raw.slice(i); if (!MOD_RE.test(suf)) continue;
+      const base = findScale(raw.slice(0, i).replace(/[-_]+$/, '').replace(/[-_]/g, ' ')); if (!base) continue;
+      let mask = base.mask; const add = [], del = [];
+      for (const mm of suf.matchAll(/([+-])([b#]?\d{1,2})/g)) { const st = degSemi(mm[2]); if (st == null || st === 0) return null; if (mm[1] === '+') { mask |= 1 << st; add.push(mm[2]); } else { mask &= ~(1 << st); del.push(mm[2]); } }
+      const sc = scaleByMask(mask); if (!sc) return null;
+      if (sc.mask === base.mask) return base;
+      const txt = (add.length ? ' + ' + add.join(', ') : '') + (del.length ? ' − ' + del.join(', ') : '') + (!sc.generated ? ' (= ' + sc.pl + ')' : '');
+      return Object.assign({}, sc, { pl: base.pl + txt, en: base.en + txt, modOf: base, mods: suf, generated: true, size: intervalsFromMask(mask).length });
+    }
+    return null;
+  }
+  // nazwa zapisu skali bazowej + zmiany, żeby dostać maskę newMask
+  function scaleModSpec(base, newMask) {
+    const NAMES = ['1', 'b2', '2', 'b3', '3', '4', 'b5', '5', 'b6', '6', 'b7', '7'];
+    let mods = '';
+    for (let i = 1; i < 12; i++) { const a = (base.mask >> i) & 1, b = (newMask >> i) & 1; if (a && !b) mods += '-' + NAMES[i]; else if (!a && b) mods += '+' + NAMES[i]; }
+    return mods;
+  }
 
   /* ---------- akordy ---------- */
   function parseChord(sym) {
@@ -1696,7 +1733,7 @@ akordy: chwyty     # albo: brzmiące
             if (sm && sm[1]) { scaleRoot = parseNote(sm[1]).pc; sname = sm[2]; }
             if (/^(chord|akord|arp)$/i.test(sname)) scaleMode = 'chord';
             else if (/^(key|tonacja)$/i.test(sname)) scaleMode = 'key';
-            else { scale = findScale(sname.replace(/[-_]/g, ' ')); if (!scale) throw new Error('Nie znam skali „' + sname + '”'); }
+            else { scale = findScale(sname.replace(/[-_]/g, ' ')) || findScaleMod(sname); if (!scale) throw new Error('Nie znam skali „' + sname + '”'); }
           }
           parsed.push({ src: t, chord, cont, dur, scale, scaleRoot, scaleMode, shape, positions, tk: { sym: tok, shapeStr, durStr, scaleSpec: scaleSpec || null, posStr }, loc: synthetic ? null : { ln, cell: ci, tok: ti } });
         } catch (e) { song.errors.push({ line: ln, msg: e.message }); }
@@ -2241,7 +2278,7 @@ akordy: chwyty     # albo: brzmiące
   }
 
   G.VF = {
-    parsePositions, posString, posSort, posLabel, pentaBase, positionInfo, positionCells, positionMap, positionWindows, POS_WIN, POS_SYS,
+    findScaleMod, scaleModSpec, parsePositions, posString, posSort, posLabel, pentaBase, positionInfo, positionCells, positionMap, positionWindows, POS_WIN, POS_SYS,
     applyTiming, lineTokens, rewriteTokens, composeToken, setDirective,
     transposeChord, parseShape, shapeText, chordVoicings, assignVoicings, voicingState,
     addScale, ALIAS, SHARP, FLAT, INTERVAL_NAMES, parseNote, noteName, maskFromIntervals, intervalsFromMask, rotateMask, bitCount, norm,
@@ -4343,7 +4380,7 @@ akordy: chwyty     # albo: brzmiące
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
   const sleep = ms => new Promise(r => setTimeout(r, ms));
   const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
-  const VERSION = '3.0.3';
+  const VERSION = '3.0.4';
   const IS_PHONE = /iPhone|iPod|Android.+Mobile/i.test(navigator.userAgent) || (window.matchMedia && matchMedia('(pointer: coarse)').matches && Math.min(screen.width, screen.height) < 600);
   const NEG = window.GRYF_EDITION === 'neg'; // „Gryf negatyw”: pokazuje tylko dźwięki spoza skali
 
@@ -6447,9 +6484,10 @@ akordy: chwyty     # albo: brzmiące
     const isNc = !ch || ch.nc;
     let h = `<div class="row"><div class="insp-title grow">${prettyChord(isNc ? 'N.C.' : ch.symbol)}</div><span class="small muted mono">takt ${ev0.bar + 1} · od ${Math.round(posQ / unit * 100) / 100 + 1}. ${b.den === 4 ? 'ćwierćnuty' : 'ósemki'} · ${fmtDur(ev.durQ)} (${Math.round(ev.durQ * 1000) / 1000} ćw.)</span></div>`;
     if (notes.length) h += `<div class="note-box">${notes.map(esc).join('<br>')}</div>`;
-    if (ST.scopeFor !== ST.sel) { ST.scope = 'all'; ST.scopeFor = ST.sel; }
-    const twins = twinsOf(ev);
-    if (twins.length) h += `<div class="row scope-row"><span class="small muted">Zmiana obejmie:</span><div class="seg wrap" role="group" aria-label="Zakres zmiany"><button data-scope="all" aria-pressed="${ST.scope !== 'one'}">wszystkie identyczne fragmenty (${twins.length + 1}×: takty ${[ev, ...twins].map(e => e.bar + 1).sort((a, b) => a - b).join(', ')})</button><button data-scope="one" aria-pressed="${ST.scope === 'one'}">tylko ten takt / tę sekwencję</button></div></div>`;
+    if (ST.scopeFor !== ST.sel) { ST.scope = 'chord'; ST.scopeFor = ST.sel; }
+    const twins = twinsOf(ev), same = isNc ? [] : chordTwins(ev);
+    const bl = L => [ev, ...L].map(e => e.bar + 1).sort((a, b) => a - b); const brief = L => { const x = bl(L); return x.length > 10 ? x.slice(0, 10).join(', ') + '…' : x.join(', '); };
+    if (twins.length || same.length) h += `<div class="row scope-row"><span class="small muted">Zmiana skali i pozycji obejmie:</span><div class="seg wrap" role="group" aria-label="Zakres zmiany">${same.length ? `<button data-scope="chord" aria-pressed="${ST.scope === 'chord'}" title="Każde wystąpienie ${esc(ch.symbol)} z tą samą skalą – takty ${brief(same)}">każde ${esc(prettyAcc(ch.symbol))} z tą skalą (${same.length + 1}×)</button>` : ''}${twins.length ? `<button data-scope="all" aria-pressed="${ST.scope === 'all' || (ST.scope === 'chord' && !same.length)}" title="Takty ${brief(twins)}">identyczne fragmenty (${twins.length + 1}×)</button>` : ''}<button data-scope="one" aria-pressed="${ST.scope === 'one'}">tylko tutaj</button></div></div>`;
     h += `<div class="row">
       <label class="f grow">Akord <input type="text" id="inChord" value="${esc(tk.sym)}"></label>
       <label class="f" style="width:120px">Długość <input type="text" id="inDur" value="${esc(tk.durStr || '')}" placeholder="auto"></label>
@@ -6475,7 +6513,8 @@ akordy: chwyty     # albo: brzmiące
         <button data-sm="key" aria-pressed="${curMode === 'key'}"${ST.song.key ? '' : ' disabled title="Ustaw tonację utworu"'}>Tonacja</button>
         <button data-sm="chord" aria-pressed="${curMode === 'chord'}">Tylko akord</button>
       </div>
-      <div class="stack" style="gap:4px"><span class="small muted">Pozycje:</span><div id="inPos">${ev.chord.nc ? '' : (() => { const sR = ev.scaleObj && !ev.chordOnly; const m = sR ? ev.scaleObj.mask : ev.chord.mask, r = sR ? ev.scaleRootPc : ev.chord.root; return posPickerHtml(m, r, ev.posSet, 'data-ipos', spellFlat(r, m, flat)); })()}</div></div>
+      ${ev.scaleObj && !ev.chordOnly ? (() => { const r = ev.scaleRootPc, m = ev.scaleObj.mask, fl = spellFlat(r, m, flat); const cs = new Set([...ch.tones.keys()].map(o => (ch.root + o - r + 120) % 12)); return `<div class="stack" style="gap:4px"><span class="small muted">Dźwięki skali – kliknij, żeby dodać albo usunąć (dowolnie wiele):</span><div class="seg wrap notes-pick" id="inNotes" role="group" aria-label="Dźwięki skali">${V.INTERVAL_NAMES.map((nm, i) => `<button data-niv="${i}" aria-pressed="${!!(m & (1 << i))}"${i === 0 ? ' disabled' : ''} class="${cs.has(i) ? 'ct' : ''}" title="${esc(prettyAcc(V.noteName((r + i) % 12, fl)))}${cs.has(i) ? ' – dźwięk akordu' : ''}"><b>${esc(prettyAcc(nm === '1' ? '1' : nm))}</b><span class="pos-sub">${esc(prettyAcc(V.noteName((r + i) % 12, fl)))}</span></button>`).join('')}</div>${ev.scaleObj.modOf ? `<button class="btn" id="inNotesReset">Przywróć: ${esc(prettyAcc(ev.scaleObj.modOf.pl))}</button>` : ''}</div>`; })() : ''}
+      <div class="stack" style="gap:4px"><span class="small muted">Pozycje:</span><div id="inPos">${ev.chord.nc ? '' : (() => { const sR = ev.scaleObj && !ev.chordOnly; const m = sR ? ev.scaleObj.mask : ev.chord.mask, r = sR ? ev.scaleRootPc : ev.chord.root; return posPickerHtml(m, r, ev.posSet, 'data-ipos', spellFlat(r, m, flat)); })()}</div>${ev.chord.nc ? '' : `<button class="btn" id="inPosAll" title="Ustawia te same pozycje (w skali każdego akordu) dla wszystkich akordów utworu – zapis „pozycje:” na początku utworu">Te pozycje we wszystkich akordach utworu</button>`}</div>
       ${ST.song.positions && ST.song.positions !== 'all' && !tk.posStr ? '<p class="small muted">Domyślne pozycje utworu: ' + V.posSort([...ST.song.positions]).join('+') + '</p>' : ''}
       <div class="row">
         <label class="f" style="width:96px">Tonika <select id="inRoot">${V.SHARP.map((n, i) => `<option value="${i}"${i === ST.scaleRoot ? ' selected' : ''}>${esc(prettyAcc(V.FLAT_ROOTS.has(i) && i !== 6 ? V.FLAT[i] : n))}</option>`).join('')}</select></label>
@@ -6540,7 +6579,7 @@ akordy: chwyty     # albo: brzmiące
       const b = e.target.closest('[data-smask]'); if (!b) return;
       const root = +b.dataset.sroot, sc = V.scaleByMask(+b.dataset.smask), slug = scaleSlug(sc);
       const rootName = V.noteName(root, spellFlat(root, sc.mask, flat));
-      tokenEdit(ev, { ...ev.tk, scaleSpec: root === ev.chord.root ? slug : rootName + ':' + slug }, false);
+      tokenEdit(ev, { ...ev.tk, scaleSpec: root === ev.chord.root ? slug : rootName + ':' + slug }, false, true);
     };
   }
   // jedna skala na cały utwór
@@ -6668,6 +6707,18 @@ akordy: chwyty     # albo: brzmiące
     for (const e of ST.song.events) if (e.loc && e.loc.ln === ln && !e.tied && !e.rep) parts.push(e.loc.cell + '.' + e.loc.tok + '=' + (e.chord.nc ? 'NC' : e.chord.symbol) + '/' + Math.round(e.durQ * 1000) + '@' + Math.round(e.startInBar * 1000));
     return parts.join(' ');
   }
+  // każde wystąpienie tego samego akordu z tą samą skalą (do zmian skali i pozycji)
+  function chordTwins(ev) {
+    if (!ev || !ev.loc || !ev.chord || ev.chord.nc) return [];
+    const key = e => e.chord.symbol + '|' + (e.chordOnly ? 'ch' : e.scaleObj ? e.scaleRootPc + ':' + e.scaleObj.mask : '-');
+    const k0 = key(ev), seen = new Set([locKey(ev.loc)]), out = [];
+    for (const e of ST.song.events) {
+      if (!e.loc || e.tied || e.viaPercent || !e.chord || e.chord.nc || !e.tk) continue;
+      const k = locKey(e.loc); if (seen.has(k)) continue;
+      if (key(e) === k0) { seen.add(k); out.push(e); }
+    }
+    return out;
+  }
   function twinsOf(ev) {
     if (!ev || !ev.loc || ev.viaPercent) return [];
     const sig = lineSig(ev.loc.ln); const sigs = new Map(); const seen = new Set([locKey(ev.loc)]), out = [];
@@ -6680,14 +6731,15 @@ akordy: chwyty     # albo: brzmiące
     return out;
   }
   // tk: obiekt (nowe pola tokenu) albo funkcja tk => token/tekst; zmienione pola przenoszę na identyczne fragmenty
-  function tokenEdit(ev, tk, dropAbsorbed) {
+  function tokenEdit(ev, tk, dropAbsorbed, scaleOnly) {
     const mk = t => typeof tk === 'function' ? tk(t) : typeof tk === 'string' ? tk : V.composeToken({ ...t, ...Object.fromEntries(Object.keys(tk).filter(k => tk[k] !== ev.tk[k]).map(k => [k, tk[k]])) });
     const one = (e, text) => { const ed = [{ ...e.loc, text }]; if (dropAbsorbed) for (const l of e.absorbed || []) ed.push({ ...l, text: null }); return ed; };
     let edits = one(ev, typeof tk === 'object' ? V.composeToken(tk) : mk(ev.tk));
-    const tw = ST.scope === 'one' ? [] : twinsOf(ev);
+    let tw = ST.scope === 'one' ? [] : twinsOf(ev);
+    if (scaleOnly && ST.scope === 'chord') { const seen = new Set(tw.map(e => locKey(e.loc))); for (const e of chordTwins(ev)) if (!seen.has(locKey(e.loc))) { seen.add(locKey(e.loc)); tw.push(e); } }
     for (const e of tw) edits = edits.concat(one(e, mk(e.tk)));
     commitText(V.rewriteTokens(editorText(), edits));
-    if (tw.length) toast('Zmieniono też w ' + tw.length + ' identycznych fragmentach');
+    if (tw.length) toast('Zmieniono też w ' + tw.length + (scaleOnly && ST.scope === 'chord' ? ' innych miejscach z tym akordem' : ' identycznych fragmentach'));
   }
   function bindInspector(ev) {
     const tk = ev.tk;
@@ -6711,11 +6763,38 @@ akordy: chwyty     # albo: brzmiące
     if (!$('#inScales')) return;
     $$('[data-sm]').forEach(b => b.onclick = () => {
       const m = b.dataset.sm;
-      tokenEdit(ev, { ...tk, scaleSpec: m === 'auto' ? null : m === 'key' ? 'tonacja' : 'akord' }, false);
+      tokenEdit(ev, { ...tk, scaleSpec: m === 'auto' ? null : m === 'key' ? 'tonacja' : 'akord' }, false, true);
     });
+    // dopisywanie / usuwanie dźwięków skali (zakres jak przy zmianie skali)
+    if ($('#inNotes')) $('#inNotes').onclick = e => {
+      const b = e.target.closest('[data-niv]'); if (!b || b.disabled) return;
+      const i = +b.dataset.niv, sc = ev.scaleObj, base = sc.modOf || sc, newMask = sc.mask ^ (1 << i);
+      if ((newMask & ~1) === 0) { toast('Skala musi mieć choć jeden dźwięk oprócz prymy'); return; }
+      const r = ev.scaleRootPc, flat = spellFlat(ev.chord.root, ev.chord.mask, ev.chord.flat);
+      const slug = scaleSlug(base) + V.scaleModSpec(base, newMask);
+      const rootName = V.noteName(r, spellFlat(r, newMask, flat));
+      tokenEdit(ev, { ...tk, scaleSpec: r === ev.chord.root ? slug : rootName + ':' + slug }, false, true);
+    };
+    if ($('#inNotesReset')) $('#inNotesReset').onclick = () => {
+      const base = ev.scaleObj.modOf, r = ev.scaleRootPc, slug = scaleSlug(base), flat = spellFlat(ev.chord.root, ev.chord.mask, ev.chord.flat);
+      tokenEdit(ev, { ...tk, scaleSpec: r === ev.chord.root ? slug : V.noteName(r, spellFlat(r, base.mask, flat)) + ':' + slug }, false, true);
+    };
+    if ($('#inPosAll')) $('#inPosAll').onclick = () => {
+      const val = ev.posSet && ev.posSet !== 'all' && ev.posSet.size ? V.posString(ev.posSet) : 'cały';
+      const edits = [], seen = new Set();
+      for (const e of ST.song.events) {
+        if (!e.loc || !e.tk || e.tied || e.viaPercent || e.tk.posStr == null) continue;
+        const k = locKey(e.loc); if (seen.has(k)) continue; seen.add(k);
+        edits.push({ ...e.loc, text: V.composeToken({ ...e.tk, posStr: null }) });
+      }
+      let text = V.rewriteTokens(editorText(), edits);
+      text = V.setDirective(text, 'pozycje', val, 'pozycje');
+      commitText(text);
+      toast('Pozycje ' + (val === 'cały' ? 'cały gryf' : val) + ' ustawione dla wszystkich akordów utworu');
+    };
     $('#inPos').onclick = e => posPickerClick(e, ev.posSet, 'data-ipos', ns => {
       const posStr = ns ? V.posString(ns) : (ST.song.positions && ST.song.positions !== 'all' ? 'cały' : null);
-      tokenEdit(ev, { ...tk, posStr }, false);
+      tokenEdit(ev, { ...tk, posStr }, false, true);
     }, () => renderInspector());
     $('#inRoot').onchange = e => { ST.scaleRoot = +e.target.value; renderScaleChoices(ev); };
     $('#inScaleQ').oninput = e => { ST.scaleQ = e.target.value; renderScaleChoices(ev); };
@@ -6723,7 +6802,7 @@ akordy: chwyty     # albo: brzmiące
       const b = e.target.closest('[data-mask]'); if (!b) return;
       const sc = V.scaleByMask(+b.dataset.mask); const slug = scaleSlug(sc);
       const rootName = V.noteName(ST.scaleRoot, spellFlat(ST.scaleRoot, sc.mask, ev.chord.flat));
-      tokenEdit(ev, { ...tk, scaleSpec: ST.scaleRoot === ev.chord.root ? slug : rootName + ':' + slug }, false);
+      tokenEdit(ev, { ...tk, scaleSpec: ST.scaleRoot === ev.chord.root ? slug : rootName + ':' + slug }, false, true);
     };
     $$('[data-pv]').forEach(b => b.onclick = () => { ST.view = b.dataset.pv; $$('[data-pv]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); renderStudioPreview(ev); });
     $('#inVPrev').onclick = () => { const { list } = stVoicings(ev); if (!list.length) return; ST.vIdx = ((ST.vIdx < 0 ? 0 : ST.vIdx) - 1 + list.length) % list.length; ST.view = 'grip'; $$('[data-pv]').forEach(x => x.setAttribute('aria-pressed', String(x.dataset.pv === 'grip'))); renderStudioPreview(ev); };
@@ -7609,7 +7688,7 @@ akordy: chwyty     # albo: brzmiące
   /* ================= EDYTOR SOLO (3.0): pięciolinia + tabulatura + linia POWER GRYF + gryf ================= */
   // Jeden model (ST.meta.solo), cztery widoki. Każda zmiana: soSave() -> renderSolo() przerysowuje wszystko.
   const SEU = 24; // jednostki na ćwierćnutę (siatka 1/96 całej nuty – szesnastki, trzydziestodwójki, triole)
-  const SE = { api: null, apiP: null, tex: '', want: '', rendering: false, map: [], geo: [], beatIx: new Map(), sel: new Set(), anchor: null, undo: [], redo: [], clip: null, drag: null, typed: null, active: false, song: null, tabCal: null, laneTop: 0, laneRow: 20 };
+  const SE = { api: null, apiP: null, tex: '', want: '', rendering: false, map: [], geo: [], beatIx: new Map(), sel: new Set(), anchor: null, undo: [], redo: [], clip: null, drag: null, typed: null, active: false, song: null, tabCal: null, laneRow: 20, get laneTop() { const l = document.getElementById('seLane'); return l && !l.hidden ? l.offsetTop : 1e9; } };
   const seShow = () => ({ score: S.seScore !== false, tab: S.seTab !== false, lane: S.seLane !== false });
   const seZoom = () => Math.max(0.5, Math.min(2, S.seZoom || 1));
   function seBarStartQ() { const sg = ST.song; const out = []; let q = 0; for (const b of sg.bars) { out.push(q); q += b.lenQ; } out.push(q); return out; }
@@ -7784,6 +7863,67 @@ akordy: chwyty     # albo: brzmiące
       else if (pairs.length) { const B = -11 * seZoom() * 1.0; SE.tabCal = { A: pairs[0][1] - B * pairs[0][0], B }; }
       else { const t = SE.staves[k]; const B = -11 * seZoom(); SE.tabCal = { A: t.y + t.h / 2 - B * 3.5, B }; }
     }
+    const keepScore = SE.scoreCal; seScoreCal(); if (!SE.scoreCal && keepScore && seShow().score) SE.scoreCal = keepScore;
+  }
+  // pięciolinia: stopień (litera + oktawa) -> wysokość; kalibracja z narysowanych główek nut
+  const SE_IDX_S = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6], SE_IDX_F = [0, 1, 1, 2, 2, 3, 4, 4, 5, 5, 6, 6];
+  function seKeyInfo() { const k = seKs(ST.song); const flat = /^(f|bb|eb|ab|db|gb)$/.test(k); const M = (flat ? SE_MAJ_F : SE_MAJ_S).indexOf(k); return { flat, set: new Set([0, 2, 4, 5, 7, 9, 11].map(x => (M + x) % 12)) }; }
+  function seStep(m) { const ki = seKeyInfo(); return Math.floor(m / 12) * 7 + (ki.flat ? SE_IDX_F : SE_IDX_S)[((m % 12) + 12) % 12]; }
+  function seStepMidi(st) { const ki = seKeyInfo(); const o = Math.floor(st / 7), L = ((st % 7) + 7) % 7; let pc = [0, 2, 4, 5, 7, 9, 11][L]; if (!ki.set.has(pc)) pc += ki.flat ? -1 : 1; return o * 12 + pc; }
+  function seScoreCal() {
+    SE.scoreCal = null; if (!seShow().score || !SE.api || !SE.api.boundsLookup) return;
+    const sys = SE.api.boundsLookup.staffSystems[0]; if (!sys) return; const tun = tuningArr(), capo = stCapo(), pairs = [];
+    for (const mb of sys.bars) for (const bb of mb.bars[0].beats) for (const nb of (bb.notes || [])) { if (nb.note.isTieDestination) continue; const s = nb.note.string - 1; if (s < 0 || s > 5) continue; pairs.push([seStep(tun[s] + capo + nb.note.fret), nb.noteHeadBounds.y + nb.noteHeadBounds.h / 2]); if (pairs.length > 80) break; }
+    const B0 = -4.5 * seZoom();
+    // bez nut: górna linia pięciolinii = F5 zapisane (F4 brzmiące), linie co 2 stopnie
+    const st0 = SE.staves && SE.staves[0];
+    const fb = st0 ? { B: -st0.h / 8, A: st0.y + (st0.h / 8) * seStep(65) } : null;
+    SE.scoreFb = fb;
+    if (!pairs.length) { SE.scoreCal = fb; return; }
+    const steps = new Set(pairs.map(p => p[0]));
+    let B = B0; if (steps.size >= 2) { const n = pairs.length, mx = pairs.reduce((a, p) => a + p[0], 0) / n, my = pairs.reduce((a, p) => a + p[1], 0) / n; let sxy = 0, sxx = 0; pairs.forEach(p => { sxy += (p[0] - mx) * (p[1] - my); sxx += (p[0] - mx) ** 2; }); B = sxy / sxx; if (!(B < 0) || Math.abs(B / B0 - 1) > 0.4) B = B0; }
+    const A = pairs.reduce((a, p) => a + (p[1] - B * p[0]), 0) / pairs.length;
+    SE.scoreCal = { A, B };
+    if (window.__pgDebug) console.log('scoreCal', JSON.stringify({ fit: SE.scoreCal, fb }));
+  }
+  // gdzie kliknięcie dodałoby nutę: czas na siatce + struna/próg
+  function seClickTarget(p, where) {
+    const sg = ST.song; const t = seTimeAt(p.x); if (!t || !sg.bars[t.b]) return null;
+    let g = SO.dur * ($('#soTrip') && $('#soTrip').checked ? 2 / 3 : 1); if (g > 1) g = 1;
+    const lenQ = sg.bars[t.b].lenQ; let q = Math.round(t.q / g) * g; if (q > lenQ - 1e-6) q = Math.max(0, lenQ - g); q = Math.round(q * 1e4) / 1e4;
+    const tun = tuningArr(), capo = stCapo(), frets = S.frets;
+    // pozycja ręki: najbliższy wcześniejszy dźwięk
+    const G = seGq({ b: t.b, q }); let prev = null; for (const n of soNotes()) if (n.f > 0 && seGq(n) <= G + 1e-6 && (!prev || seGq(n) > seGq(prev))) prev = n;
+    const hand = prev ? prev.f : 7;
+    let s = null, f = null;
+    if (where === 'score') {
+      if (!SE.scoreCal) return null;
+      const m = seStepMidi(Math.round((p.y - SE.scoreCal.A) / SE.scoreCal.B)) - capo;
+      let best = null; for (let k = 0; k < 6; k++) { const ff = m - tun[k]; if (ff < 0 || ff > frets) continue; const c = Math.abs(ff - hand) + (k === SO.str ? -0.6 : 0) + (ff === 0 ? 0.5 : 0); if (!best || c < best.c) best = { s: k, f: ff, c }; }
+      if (!best) return null; s = best.s; f = best.f;
+    } else {
+      s = seStringAtY(p); if (s == null) return null;
+      const ev = soEventAt(t.b, q); const allow = new Set(), tones = new Set();
+      if (ev && !ev.chord.nc) {
+        const ch = V.transposeChord(ev.chord, stShift()); for (const [o] of ch.tones) tones.add((ch.root + o) % 12);
+        if (ev.scaleObj && !ev.chordOnly) { const r = (ev.scaleRootPc + stShift()) % 12; for (let i = 0; i < 12; i++) if (ev.scaleObj.mask & (1 << i)) allow.add((r + i) % 12); }
+        tones.forEach(x => allow.add(x));
+      }
+      let best = null; for (let ff = 0; ff <= frets; ff++) { const pc = (tun[s] + capo + ff) % 12; if (allow.size && !allow.has(pc)) continue; const c = Math.abs(ff - hand) - (tones.has(pc) ? 0.4 : 0) + (ff === 0 ? 0.8 : 0); if (!best || c < best.c) best = { f: ff, c }; }
+      f = best ? best.f : Math.min(frets, hand);
+    }
+    if (f > 0 && f < capo) return null;
+    return { b: t.b, q, s, f, midi: tun[s] + capo + f };
+  }
+  function seClickInsert(tg) {
+    const ex = soNotes().find(n => n.b === tg.b && Math.abs(n.q - tg.q) < 1e-6 && n.s === tg.s);
+    if (ex) { seSelect(ex); seHear(ex); seCursorMoved(); return; }
+    SO.bar = tg.b; SO.cur = tg.q; SO.str = tg.s;
+    const d = soEffDur(), g = tg.f === 0 ? 0 : (SO.finger === 'auto' ? soAutoFinger(tg.s, tg.f) : +SO.finger);
+    const n = { b: tg.b, q: tg.q, d: Math.round(d * 1e4) / 1e4, s: tg.s, f: tg.f, g };
+    seMut(sol => { sol.push(n); });
+    SE.sel = new Set([n]); SO.sel = n; SE.anchor = n; SE.last = n; SE.typed = { sel: true, f: n.f, t: 0 };
+    seHear(n); seCursorMoved();
   }
   function seXAt(b, q) {
     const g = SE.geo[b]; if (!g) return 0; const u = q * SEU, P = g.pts;
@@ -7807,7 +7947,6 @@ akordy: chwyty     # albo: brzmiące
     inner.style.width = W + 'px';
     const rowH = SE.laneRow = Math.round(19 * Math.max(0.8, Math.min(1.4, z))), top = 10;
     const rowOf = s => S.highTop ? 5 - s : s;
-    SE.laneTop = at.offsetHeight;
     let h = '';
     if (sh.lane && SE.geo.length) {
       lane.hidden = false; lane.style.height = (top * 2 + rowH * 5 + 8) + 'px'; lane.style.width = W + 'px';
@@ -7934,7 +8073,7 @@ akordy: chwyty     # albo: brzmiące
     $$('#soFinger [data-sf]').forEach(x => x.setAttribute('aria-pressed', String(SO.sel ? x.dataset.sf === String(SO.sel.g) : x.dataset.sf === SO.finger)));
     const sh = seShow(); $('#seShowScore').checked = sh.score; $('#seShowTab').checked = sh.tab; $('#seShowLane').checked = sh.lane;
     $('#seZoom').value = Math.round(seZoom() * 100); $('#seZoomVal').textContent = Math.round(seZoom() * 100) + '%';
-    seRender(); seFret();
+    seRender(); seFret(); sePalUi();
   }
   // lekkie odświeżenie przy przesuwaniu kursora (bez przebudowy nut)
   function seCursorMoved(scroll) {
@@ -7945,6 +8084,7 @@ akordy: chwyty     # albo: brzmiące
     $$('#soFinger [data-sf]').forEach(x => x.setAttribute('aria-pressed', String(SO.sel ? x.dataset.sf === String(SO.sel.g) : x.dataset.sf === SO.finger)));
     const all = soNotes(); $('#soCount').textContent = all.length ? all.length + ' dźwięków w ' + new Set(all.map(n => n.b)).size + ' taktach' + (SE.sel.size ? ' · zaznaczone: ' + SE.sel.size : '') : 'brak dźwięków';
     $('#seLane').querySelectorAll('.nt').forEach(el => el.classList.toggle('sel', SE.sel.has(all[+el.dataset.ni])));
+    sePalUi();
   }
   /* ---------- edycja: cofanie, zmiany ---------- */
   function seSnap() { return JSON.stringify(soNotes()); }
@@ -8045,7 +8185,7 @@ akordy: chwyty     # albo: brzmiące
     const n = { b: SO.bar, q: Math.round(SO.cur * 1e4) / 1e4, d: Math.round(d * 1e4) / 1e4, s, f, g: f === 0 ? 0 : g };
     seMut(sol => { const k = sol.findIndex(m => m.b === n.b && Math.abs(m.q - n.q) < 1e-6 && m.s === n.s); if (k >= 0) sol.splice(k, 1); sol.push(n); });
     seHear(n);
-    SE.typed = { n, t: Date.now(), adv: !$('#soStack').checked };
+    SE.typed = { n, t: Date.now(), adv: !$('#soStack').checked }; SE.last = n;
     if (SE.typed.adv) soAdvance(d);
     seCursorMoved(true);
   }
@@ -8068,11 +8208,17 @@ akordy: chwyty     # albo: brzmiące
     if (!L.length) { const i = vals.indexOf(SO.dur); SO.dur = vals[Math.max(0, Math.min(vals.length - 1, (i < 0 ? 2 : i) + k))]; renderSolo(); return; }
     seMut(() => L.forEach(n => { n.d = Math.round(Math.max(0.0625, Math.min(8, k > 0 ? n.d * 2 : n.d / 2)) * 1e4) / 1e4; }));
   }
+  // dźwięki, których dotyczy przycisk/skrót: zaznaczone, a gdy nic nie jest zaznaczone – ostatnio wpisany
+  function seTargets() { if (SE.sel.size) return [...SE.sel]; return SE.last && soNotes().includes(SE.last) ? [SE.last] : []; }
   function seToggle(kind) {
-    const L = [...SE.sel]; if (!L.length) { toast('Zaznacz dźwięk (kliknij go w nutach, tabulaturze albo na linii)'); return; }
+    const L = seTargets(); if (!L.length) { toast('Zaznacz dźwięk (kliknij go w nutach, tabulaturze albo na linii)'); return; }
     const tun = tuningArr();
+    const allHave = f => L.every(f);
     seMut(() => L.forEach(n => {
-      if (kind === 'b') { const seq = [0, 2, 1, 3]; const i = seq.indexOf(Math.round(n.bd || 0)); const nb = seq[(i + 1) % seq.length]; if (nb) { n.bd = nb; n.bt = n.bt || 'b'; } else { delete n.bd; delete n.bt; } }
+      if (/^b[123]$/.test(kind)) { const v = +kind[1]; if (allHave(m => m.bd === v && (m.bt || 'b') === 'b')) { delete n.bd; delete n.bt; } else { n.bd = v; n.bt = 'b'; } }
+      else if (kind === 'br') { if (allHave(m => m.bt === 'br')) { n.bt = 'b'; } else { if (!n.bd) n.bd = 2; n.bt = 'br'; } }
+      else if (kind === 'pb') { if (allHave(m => m.bt === 'pb')) { n.bt = 'b'; } else { if (!n.bd) n.bd = 2; n.bt = 'pb'; } }
+      else if (kind === 'b') { const seq = [0, 2, 1, 3]; const i = seq.indexOf(Math.round(n.bd || 0)); const nb = seq[(i + 1) % seq.length]; if (nb) { n.bd = nb; n.bt = n.bt || 'b'; } else { delete n.bd; delete n.bt; } }
       else if (kind === 'r') { if (!n.bd) n.bd = 2; n.bt = n.bt === 'br' ? 'b' : 'br'; }
       else if (kind === 'p') { if (!n.bd) n.bd = 2; n.bt = n.bt === 'pb' ? 'b' : 'pb'; }
       else if (kind === 'v') { if (n.vb) delete n.vb; else n.vb = 1; }
@@ -8083,7 +8229,22 @@ akordy: chwyty     # albo: brzmiące
         n.lg = prev && tun[prev.s] + prev.f > tun[n.s] + n.f ? 'p' : 'h';
       }
     }), true);
-    seHear(L);
+    seHear(L); sePalUi();
+  }
+  // stan paska: aktywne techniki zaznaczonego / ostatniego dźwięku
+  function seDurName(d) {
+    const N = [[4, 'cała nuta'], [2, 'półnuta'], [1, 'ćwierćnuta'], [0.5, 'ósemka'], [0.25, 'szesnastka'], [0.125, 'trzydziestodwójka']];
+    for (const [v, n] of N) { if (Math.abs(d - v) < 1e-3) return n; if (Math.abs(d - v * 1.5) < 1e-3) return n + ' z kropką'; if (Math.abs(d - v * 2 / 3) < 1e-3) return n + ' w trioli'; }
+    return Math.round(d * 1000) / 1000 + ' ćw.';
+  }
+  function sePalUi() {
+    const L = seTargets(), n = L[0];
+    const on = { b1: n && n.bd === 1 && (n.bt || 'b') === 'b', b2: n && n.bd === 2 && (n.bt || 'b') === 'b', b3: n && n.bd === 3 && (n.bt || 'b') === 'b', br: n && n.bt === 'br', pb: n && n.bt === 'pb', h: n && (n.lg === 'h' || n.lg === 'p'), s: n && n.lg === 's', v: n && !!n.vb };
+    $$('#soTech [data-tech]').forEach(b => { b.setAttribute('aria-pressed', String(!!on[b.dataset.tech])); b.disabled = !n; });
+    const info = $('#sePalInfo'); if (!info) return;
+    if (!n) { info.textContent = 'Kliknij na pięciolinii albo strunie w tabulaturze, żeby dodać nutę – albo kliknij istniejącą, żeby ją zaznaczyć.'; return; }
+    const tun = tuningArr(), sg = ST.song, flat = !!(sg.key && sg.key.flat), m = tun[n.s] + n.f + stCapo();
+    info.textContent = (SE.sel.size > 1 ? 'Zaznaczone: ' + SE.sel.size + ' · ' : SE.sel.size ? 'Zaznaczona: ' : 'Ostatnia: ') + prettyAcc(V.noteName(m % 12, flat)) + (Math.floor(m / 12) - 1) + ', struna ' + (6 - n.s) + ', próg ' + n.f + ', ' + seDurName(n.d) + (SOLOGEN.techText(n) !== String(n.f) ? ' · ' + SOLOGEN.techText(n) : '');
   }
   function seCursorStep(dir) {
     const sg = ST.song, st = seGrid(); let G = seGq({ b: SO.bar, q: SO.cur }) + dir * st;
@@ -8181,10 +8342,26 @@ akordy: chwyty     # albo: brzmiące
       const s = seStringAtY(p); if (s != null) SO.str = s;
       if (!e.shiftKey && !e.ctrlKey && !e.metaKey) SE.sel.clear();
       SO.sel = SE.sel.size ? [...SE.sel][0] : null; SE.typed = null;
-      SE.drag = { kind: 'box', x0: p.x, y0: p.y, x: p.x, y: p.y, base: new Set(SE.sel), pid: e.pointerId, where: hit.where };
+      SE.drag = { kind: 'box', x0: p.x, y0: p.y, x: p.x, y: p.y, base: new Set(SE.sel), pid: e.pointerId, where: hit.where, add: S.seClickAdd !== false && !e.shiftKey && !e.ctrlKey && !e.metaKey ? seClickTarget(p, hit.where) : null };
       inner.setPointerCapture(e.pointerId); seCursorMoved(); e.preventDefault();
     });
+    let ghostRaf = 0;
+    inner.addEventListener('pointerleave', () => { const g = $('#seOver .ghost'); if (g) g.remove(); });
     inner.addEventListener('pointermove', e => {
+      if (!SE.drag && S.seClickAdd !== false && e.pointerType !== 'touch') {
+        if (ghostRaf) return; const cx = e.clientX, cy = e.clientY;
+        ghostRaf = requestAnimationFrame(() => {
+          ghostRaf = 0; const ov = $('#seOver'); if (!ov) return; let gh = ov.querySelector('.ghost');
+          const p = sePt({ clientX: cx, clientY: cy }); p.cx = cx; p.cy = cy;
+          const hit = seHitNote(p); const tg = hit.n ? null : seClickTarget(p, hit.where);
+          if (!tg) { if (gh) gh.remove(); return; }
+          if (!gh) { gh = document.createElement('div'); gh.className = 'ghost'; ov.appendChild(gh); }
+          const sg = ST.song, flat = !!(sg.key && sg.key.flat);
+          gh.textContent = '+ ' + prettyAcc(V.noteName(tg.midi % 12, flat)) + (Math.floor(tg.midi / 12) - 1) + ' · str. ' + (6 - tg.s) + ', próg ' + tg.f;
+          gh.style.left = (seXAt(tg.b, tg.q) - 4) + 'px'; gh.style.top = (p.y - 34) + 'px';
+        });
+        return;
+      }
       const d = SE.drag; if (!d || d.pid !== e.pointerId) return;
       const p = sePt(e); d.x = p.x; d.y = p.y;
       if (d.kind === 'box') {
@@ -8221,7 +8398,7 @@ akordy: chwyty     # albo: brzmiące
     const end = e => {
       const d = SE.drag; if (!d || d.pid !== e.pointerId) return; SE.drag = null;
       try { inner.releasePointerCapture(e.pointerId); } catch (_) { }
-      if (d.kind === 'box') { seCursorMoved(); return; }
+      if (d.kind === 'box') { if (d.add && Math.abs(d.x - d.x0) + Math.abs(d.y - d.y0) < 6) seClickInsert(d.add); else seCursorMoved(); return; }
       if (!d.moved) { seCursorMoved(); return; }
       const L = [...SE.sel]; if (!L.length) { renderSolo(); return; }
       // czas: z przesunięcia w poziomie, na siatce
@@ -8324,8 +8501,10 @@ akordy: chwyty     # albo: brzmiące
     $('#seZoomIn').onclick = () => seSetZoom(seZoom() * 1.15); $('#seZoomOut').onclick = () => seSetZoom(seZoom() / 1.15);
     const tog = () => { let sc = $('#seShowScore').checked, tb = $('#seShowTab').checked; if (!sc && !tb) { tb = true; $('#seShowTab').checked = true; } S.seScore = sc; S.seTab = tb; S.seLane = $('#seShowLane').checked; save(); seApplySettings(); };
     $('#seShowScore').onchange = $('#seShowTab').onchange = $('#seShowLane').onchange = tog;
-    // przyciski dla ekranów dotykowych (bez klawiatury)
-    $('#seTouch').onclick = e => {
+    // pasek pisania: edycja i techniki
+    $('#soTech').onclick = e => { const b = e.target.closest('[data-tech]'); if (!b) return; SE.active = true; seToggle(b.dataset.tech); };
+    $('#seClickAdd').checked = S.seClickAdd !== false; $('#seClickAdd').onchange = e => { S.seClickAdd = e.target.checked; save(); };
+    $('#sePal').onclick = e => {
       const b = e.target.closest('[data-se]'); if (!b) return; const a = b.dataset.se; SE.active = true;
       ({ undo: seUndo, redo: seRedo, del: seDelete, copy: () => seCopy(false), cut: () => seCopy(true), paste: sePaste, left: () => SE.sel.size ? seMoveTime(-seSelGrid()) : seCursorStep(-1), right: () => SE.sel.size ? seMoveTime(seSelGrid()) : seCursorStep(1), up: () => seMovePitch(1), down: () => seMovePitch(-1), bend: () => seToggle('b'), hammer: () => seToggle('h'), slide: () => seToggle('s'), vib: () => seToggle('v') }[a] || (() => { }))();
     };
